@@ -4,7 +4,8 @@ var gl;
 var cubeVerticesBuffer;
 var cubeVerticesColorBuffer;
 var cubeVerticesIndexBuffer;
-var cubeVerticesIndexBuffer;
+var cubeVerticesNormalBuffer;
+
 var cubeRotation = 30.0;
 var cubeXOffset = 0.0;
 var cubeYOffset = 0.0;
@@ -15,22 +16,16 @@ var yIncValue = -0.4;
 var zIncValue = 0.3;
 
 var mvMatrix;
+var nMatrix;
 var shaderProgram;
 var vertexPositionAttribute;
 var vertexColorAttribute;
+var vertexNormalAttribute;
 var perspectiveMatrix;
 
-//
-// start
-//
-// Called when the canvas is created to get the ball rolling.
-//
 function start() {
-  canvas = document.getElementById("glcanvas");
-
-	gl = WebGLUtils.setupWebGL(canvas);
-  
-  // Only continue if WebGL is available and working
+  canvas 	= document.getElementById("glcanvas");
+	gl 			= WebGLUtils.setupWebGL(canvas);
   
   if (gl) {
     gl.clearColor(0.0, 0.0, 0.0, 1.0);  // Clear to black, fully opaque
@@ -39,19 +34,56 @@ function start() {
     gl.depthFunc(gl.LEQUAL);            // Near things obscure far things
     
     // Initialize the shaders; this is where all the lighting for the
-    // vertices and so forth is established.
-    
+    // vertices and so forth is established.    
     initShaders();
     
     // Here's where we call the routine that builds all the objects
-    // we'll be drawing.
-    
+    // we'll be drawing.    
     initBuffers();
     
-    // Set up to draw the scene periodically.
-    
+    // Set up to draw the scene periodically.    
 		drawScene();
   }
+}
+
+//
+// initShaders
+//
+// Initialize the shaders, so WebGL knows how to light our scene.
+//
+function initShaders() {
+  var fragmentShader = getShader(gl, "shader-fs");
+  var vertexShader = getShader(gl, "shader-vs");
+  
+  // Create the shader program  
+  shaderProgram = gl.createProgram();
+  gl.attachShader(shaderProgram, vertexShader);
+  gl.attachShader(shaderProgram, fragmentShader);
+  gl.linkProgram(shaderProgram);
+  
+  // If creating the shader program failed, alert  
+  if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+    alert("Unable to initialize the shader program.");
+  }
+  
+  gl.useProgram(shaderProgram);
+  
+  vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+  gl.enableVertexAttribArray(vertexPositionAttribute);
+  
+  vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
+  gl.enableVertexAttribArray(vertexColorAttribute);
+
+	vertexNormalAttribute = gl.getAttribLocation(shaderProgram, "aVertexNormal");
+	gl.enableVertexAttribArray(vertexNormalAttribute);
+		
+	shaderProgram.uMaterialDiffuse  = gl.getUniformLocation(shaderProgram, "uMaterialDiffuse");
+	shaderProgram.uLightDiffuse     = gl.getUniformLocation(shaderProgram, "uLightDiffuse");
+	shaderProgram.uLightDirection   = gl.getUniformLocation(shaderProgram, "uLightDirection");
+	
+	gl.uniform3fv(shaderProgram.uLightDirection,    [0.0,-1.0,-1.0]);
+	gl.uniform4fv(shaderProgram.uLightDiffuse,      [1.0,1.0,1.0,1.0]); 
+	gl.uniform4fv(shaderProgram.uMaterialDiffuse,   [0.5,0.8,0.1,1.0]);
 }
 
 //
@@ -62,17 +94,14 @@ function start() {
 //
 function initBuffers() {
   
-  // Create a buffer for the cube's vertices.
-  
+  // Create a buffer for the cube's vertices.  
   cubeVerticesBuffer = gl.createBuffer();
   
   // Select the cubeVerticesBuffer as the one to apply vertex
-  // operations to from here out.
-  
+  // operations to from here out.  
   gl.bindBuffer(gl.ARRAY_BUFFER, cubeVerticesBuffer);
   
-  // Now create an array of vertices for the cube.
-  
+  // Now create an array of vertices for the cube.  
   var vertices = [
     // Front face
     -1.0, -1.0,  1.0,
@@ -113,13 +142,56 @@ function initBuffers() {
   
   // Now pass the list of vertices into WebGL to build the shape. We
   // do this by creating a Float32Array from the JavaScript array,
-  // then use it to fill the current vertex buffer.
-  
+  // then use it to fill the current vertex buffer.  
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+
+  // Set up the normals for the vertices, so that we can compute lighting.
+  
+  cubeVerticesNormalBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, cubeVerticesNormalBuffer);
+  
+  var vertexNormals = [
+    // Front
+     0.0,  0.0,  1.0,
+     0.0,  0.0,  1.0,
+     0.0,  0.0,  1.0,
+     0.0,  0.0,  1.0,
+    
+    // Back
+     0.0,  0.0, -1.0,
+     0.0,  0.0, -1.0,
+     0.0,  0.0, -1.0,
+     0.0,  0.0, -1.0,
+    
+    // Top
+     0.0,  1.0,  0.0,
+     0.0,  1.0,  0.0,
+     0.0,  1.0,  0.0,
+     0.0,  1.0,  0.0,
+    
+    // Bottom
+     0.0, -1.0,  0.0,
+     0.0, -1.0,  0.0,
+     0.0, -1.0,  0.0,
+     0.0, -1.0,  0.0,
+    
+    // Right
+     1.0,  0.0,  0.0,
+     1.0,  0.0,  0.0,
+     1.0,  0.0,  0.0,
+     1.0,  0.0,  0.0,
+    
+    // Left
+    -1.0,  0.0,  0.0,
+    -1.0,  0.0,  0.0,
+    -1.0,  0.0,  0.0,
+    -1.0,  0.0,  0.0
+  ];
+  
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexNormals), gl.STATIC_DRAW);
   
   // Now set up the colors for the faces. We'll use solid colors
-  // for each face.
-  
+  // for each face.  
   var colors = [
     [1.0,  1.0,  1.0,  1.0],    // Front face: white
     [1.0,  0.0,  0.0,  1.0],    // Back face: red
@@ -129,15 +201,13 @@ function initBuffers() {
     [1.0,  0.0,  1.0,  1.0]     // Left face: purple
   ];
   
-  // Convert the array of colors into a table for all the vertices.
-  
+  // Convert the array of colors into a table for all the vertices.  
   var generatedColors = [];
   
   for (j=0; j<6; j++) {
     var c = colors[j];
     
-    // Repeat each color four times for the four vertices of the face
-    
+    // Repeat each color four times for the four vertices of the face    
     for (var i=0; i<4; i++) {
       generatedColors = generatedColors.concat(c);
     }
@@ -148,15 +218,13 @@ function initBuffers() {
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(generatedColors), gl.STATIC_DRAW);
 
   // Build the element array buffer; this specifies the indices
-  // into the vertex array for each face's vertices.
-  
+  // into the vertex array for each face's vertices.  
   cubeVerticesIndexBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cubeVerticesIndexBuffer);
   
   // This array defines each face as two triangles, using the
   // indices into the vertex array to specify each triangle's
-  // position.
-  
+  // position.  
   var cubeVertexIndices = [
     0,  1,  2,      0,  2,  3,    // front
     4,  5,  6,      4,  6,  7,    // back
@@ -166,8 +234,7 @@ function initBuffers() {
     20, 21, 22,     20, 22, 23    // left
   ]
   
-  // Now send the element array to GL
-  
+  // Now send the element array to GL  
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(cubeVertexIndices), gl.STATIC_DRAW);
 }
 
@@ -178,55 +245,49 @@ function initBuffers() {
 //
 function drawScene() {	
   // Clear the canvas before we start drawing on it.
-
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   
   // Establish the perspective with which we want to view the
   // scene. Our field of view is 45 degrees, with a width/height
   // ratio of 640:480, and we only want to see objects between 0.1 units
-  // and 100 units away from the camera.
-  
+  // and 100 units away from the camera.  
   perspectiveMatrix = makePerspective(45, 640.0/480.0, 0.1, 100.0);
   
   // Set the drawing position to the "identity" point, which is
-  // the center of the scene.
-  
+  // the center of the scene.  
   loadIdentity();
   
   // Now move the drawing position a bit to where we want to start
-  // drawing the cube.
-  
+  // drawing the cube.  
   mvTranslate([-0.0, 0.0, -6.0]);
   
-  // Save the current matrix, then rotate before we draw.
-  
+  // Save the current matrix, then rotate before we draw.  
   mvPushMatrix();
   mvRotate(cubeRotation, [1, 0, 1]);
   mvTranslate([cubeXOffset, cubeYOffset, cubeZOffset]);
   
   // Draw the cube by binding the array buffer to the cube's vertices
-  // array, setting attributes, and pushing it to GL.
-  
+  // array, setting attributes, and pushing it to GL.  
   gl.bindBuffer(gl.ARRAY_BUFFER, cubeVerticesBuffer);
   gl.vertexAttribPointer(vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
   
-  // Set the colors attribute for the vertices.
-  
+  // Set the colors attribute for the vertices.  
   gl.bindBuffer(gl.ARRAY_BUFFER, cubeVerticesColorBuffer);
   gl.vertexAttribPointer(vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
+
+  // Bind the normals buffer to the shader attribute.  
+  gl.bindBuffer(gl.ARRAY_BUFFER, cubeVerticesNormalBuffer);
+  gl.vertexAttribPointer(vertexNormalAttribute, 3, gl.FLOAT, false, 0, 0);
   
-  // Draw the cube.
-  
+  // Draw the cube.  
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cubeVerticesIndexBuffer);
   setMatrixUniforms();
   gl.drawElements(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0);
   
-  // Restore the original matrix
-  
+  // Restore the original matrix  
   mvPopMatrix();
   
-  // Update the rotation for the next draw, if it's time to do so.
-  
+  // Update the rotation for the next draw, if it's time to do so.  
   var currentTime = (new Date).getTime();
   if (lastCubeUpdateTime) {
     var delta = currentTime - lastCubeUpdateTime;
@@ -249,37 +310,6 @@ function drawScene() {
 }
 
 //
-// initShaders
-//
-// Initialize the shaders, so WebGL knows how to light our scene.
-//
-function initShaders() {
-  var fragmentShader = getShader(gl, "shader-fs");
-  var vertexShader = getShader(gl, "shader-vs");
-  
-  // Create the shader program
-  
-  shaderProgram = gl.createProgram();
-  gl.attachShader(shaderProgram, vertexShader);
-  gl.attachShader(shaderProgram, fragmentShader);
-  gl.linkProgram(shaderProgram);
-  
-  // If creating the shader program failed, alert
-  
-  if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
-    alert("Unable to initialize the shader program.");
-  }
-  
-  gl.useProgram(shaderProgram);
-  
-  vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
-  gl.enableVertexAttribArray(vertexPositionAttribute);
-  
-  vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
-  gl.enableVertexAttribArray(vertexColorAttribute);
-}
-
-//
 // getShader
 //
 // Loads a shader program by scouring the current document,
@@ -288,15 +318,13 @@ function initShaders() {
 function getShader(gl, id) {
   var shaderScript = document.getElementById(id);
   
-  // Didn't find an element with the specified ID; abort.
-  
+  // Didn't find an element with the specified ID; abort.  
   if (!shaderScript) {
     return null;
   }
   
   // Walk through the source element's children, building the
-  // shader source string.
-  
+  // shader source string.  
   var theSource = "";
   var currentChild = shaderScript.firstChild;
   
@@ -309,8 +337,7 @@ function getShader(gl, id) {
   }
   
   // Now figure out what type of shader script we have,
-  // based on its MIME type.
-  
+  // based on its MIME type.  
   var shader;
   
   if (shaderScript.type == "x-shader/x-fragment") {
@@ -321,16 +348,13 @@ function getShader(gl, id) {
     return null;  // Unknown shader type
   }
   
-  // Send the source to the shader object
-  
+  // Send the source to the shader object  
   gl.shaderSource(shader, theSource);
   
-  // Compile the shader program
-  
+  // Compile the shader program  
   gl.compileShader(shader);
   
-  // See if it compiled successfully
-  
+  // See if it compiled successfully  
   if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
     alert("An error occurred compiling the shaders: " + gl.getShaderInfoLog(shader));
     return null;
@@ -361,6 +385,11 @@ function setMatrixUniforms() {
 
   var mvUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
   gl.uniformMatrix4fv(mvUniform, false, new Float32Array(mvMatrix.flatten()));
+  
+  var normalMatrix = mvMatrix.inverse();
+  normalMatrix = normalMatrix.transpose();
+  var nUniform = gl.getUniformLocation(shaderProgram, "uNormalMatrix");
+  gl.uniformMatrix4fv(nUniform, false, new Float32Array(normalMatrix.flatten()));
 }
 
 var mvMatrixStack = [];
