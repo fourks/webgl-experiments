@@ -7,21 +7,14 @@ var cubeVerticesIndexBuffer;
 var cubeVerticesNormalBuffer;
 
 var cubeRotation = 30.0;
-var cubeXOffset = 0.0;
-var cubeYOffset = 0.0;
-var cubeZOffset = 0.0;
 var lastCubeUpdateTime = 0;
-var xIncValue = 0.2;
-var yIncValue = -0.4;
-var zIncValue = 0.3;
 
+var shaderProgram;
 var mvMatrix;
 var nMatrix;
-var shaderProgram;
-var vertexPositionAttribute;
-var vertexColorAttribute;
-var vertexNormalAttribute;
 var perspectiveMatrix;
+var vertexPositionAttribute;
+var vertexNormalAttribute;
 
 function start() {
   canvas 	= document.getElementById("glcanvas");
@@ -70,9 +63,6 @@ function initShaders() {
   
   vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
   gl.enableVertexAttribArray(vertexPositionAttribute);
-  
-  vertexColorAttribute = gl.getAttribLocation(shaderProgram, "aVertexColor");
-  gl.enableVertexAttribArray(vertexColorAttribute);
 
 	vertexNormalAttribute = gl.getAttribLocation(shaderProgram, "aVertexNormal");
 	gl.enableVertexAttribArray(vertexNormalAttribute);
@@ -84,6 +74,9 @@ function initShaders() {
 	gl.uniform3fv(shaderProgram.uLightDirection,    [0.0,-1.0,-1.0]);
 	gl.uniform4fv(shaderProgram.uLightDiffuse,      [1.0,1.0,1.0,1.0]); 
 	gl.uniform4fv(shaderProgram.uMaterialDiffuse,   [0.5,0.8,0.1,1.0]);
+	
+	shaderProgram.uVertexColor  = gl.getUniformLocation(shaderProgram, "uVertexColor");	
+	gl.uniform4fv(shaderProgram.uVertexColor,    		[1.0,0.0,1.0,1.0]);
 }
 
 //
@@ -145,11 +138,12 @@ function initBuffers() {
   // then use it to fill the current vertex buffer.  
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
 
-  // Set up the normals for the vertices, so that we can compute lighting.
-  
+  // Set up the normals for the vertices, so that we can compute lighting.  
   cubeVerticesNormalBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, cubeVerticesNormalBuffer);
   
+	// Note that these could be calculated using the vertices & indices rather
+	// than declaring them explicitly
   var vertexNormals = [
     // Front
      0.0,  0.0,  1.0,
@@ -190,32 +184,7 @@ function initBuffers() {
   
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexNormals), gl.STATIC_DRAW);
   
-  // Now set up the colors for the faces. We'll use solid colors
-  // for each face.  
-  var colors = [
-    [1.0,  1.0,  1.0,  1.0],    // Front face: white
-    [1.0,  0.0,  0.0,  1.0],    // Back face: red
-    [0.0,  1.0,  0.0,  1.0],    // Top face: green
-    [0.0,  0.0,  1.0,  1.0],    // Bottom face: blue
-    [1.0,  1.0,  0.0,  1.0],    // Right face: yellow
-    [1.0,  0.0,  1.0,  1.0]     // Left face: purple
-  ];
-  
-  // Convert the array of colors into a table for all the vertices.  
-  var generatedColors = [];
-  
-  for (j=0; j<6; j++) {
-    var c = colors[j];
-    
-    // Repeat each color four times for the four vertices of the face    
-    for (var i=0; i<4; i++) {
-      generatedColors = generatedColors.concat(c);
-    }
-  }
-  
-  cubeVerticesColorBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, cubeVerticesColorBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(generatedColors), gl.STATIC_DRAW);
+
 
   // Build the element array buffer; this specifies the indices
   // into the vertex array for each face's vertices.  
@@ -264,16 +233,11 @@ function drawScene() {
   // Save the current matrix, then rotate before we draw.  
   mvPushMatrix();
   mvRotate(cubeRotation, [1, 0, 1]);
-  mvTranslate([cubeXOffset, cubeYOffset, cubeZOffset]);
   
   // Draw the cube by binding the array buffer to the cube's vertices
   // array, setting attributes, and pushing it to GL.  
   gl.bindBuffer(gl.ARRAY_BUFFER, cubeVerticesBuffer);
   gl.vertexAttribPointer(vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
-  
-  // Set the colors attribute for the vertices.  
-  gl.bindBuffer(gl.ARRAY_BUFFER, cubeVerticesColorBuffer);
-  gl.vertexAttribPointer(vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
 
   // Bind the normals buffer to the shader attribute.  
   gl.bindBuffer(gl.ARRAY_BUFFER, cubeVerticesNormalBuffer);
@@ -289,24 +253,29 @@ function drawScene() {
   
   // Update the rotation for the next draw, if it's time to do so.  
   var currentTime = (new Date).getTime();
-  if (lastCubeUpdateTime) {
+
+  if (lastCubeUpdateTime){
     var delta = currentTime - lastCubeUpdateTime;
     
     cubeRotation += (30 * delta) / 1000.0;
-    // cubeXOffset += xIncValue * ((30 * delta) / 1000.0);
-    // cubeYOffset += yIncValue * ((30 * delta) / 1000.0);
-    // cubeZOffset += zIncValue * ((30 * delta) / 1000.0);
-    
-    // if (Math.abs(cubeYOffset) > 2.5) {
-    //   xIncValue = -xIncValue;
-    //   yIncValue = -yIncValue;
-    //   zIncValue = -zIncValue;
-    // }
   }
   
   lastCubeUpdateTime = currentTime;
 
 	window.requestAnimFrame(drawScene);
+}
+
+function setMatrixUniforms() {
+  var pUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
+  gl.uniformMatrix4fv(pUniform, false, new Float32Array(perspectiveMatrix.flatten()));
+
+  var mvUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
+  gl.uniformMatrix4fv(mvUniform, false, new Float32Array(mvMatrix.flatten()));
+  
+  var normalMatrix = mvMatrix.inverse();
+  normalMatrix = normalMatrix.transpose();
+  var nUniform = gl.getUniformLocation(shaderProgram, "uNormalMatrix");
+  gl.uniformMatrix4fv(nUniform, false, new Float32Array(normalMatrix.flatten()));
 }
 
 //
@@ -377,19 +346,6 @@ function multMatrix(m) {
 
 function mvTranslate(v) {
   multMatrix(Matrix.Translation($V([v[0], v[1], v[2]])).ensure4x4());
-}
-
-function setMatrixUniforms() {
-  var pUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
-  gl.uniformMatrix4fv(pUniform, false, new Float32Array(perspectiveMatrix.flatten()));
-
-  var mvUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
-  gl.uniformMatrix4fv(mvUniform, false, new Float32Array(mvMatrix.flatten()));
-  
-  var normalMatrix = mvMatrix.inverse();
-  normalMatrix = normalMatrix.transpose();
-  var nUniform = gl.getUniformLocation(shaderProgram, "uNormalMatrix");
-  gl.uniformMatrix4fv(nUniform, false, new Float32Array(normalMatrix.flatten()));
 }
 
 var mvMatrixStack = [];

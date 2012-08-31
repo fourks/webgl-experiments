@@ -1,6 +1,6 @@
 <html>
 <head>
-  <title>WebGL 3D cube with Goraud interpolation (shading) and Lambertian reflection (lighting)</title>
+  <title>Gouraud shading and Lambertian reflection</title>
 
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
 
@@ -16,7 +16,8 @@
   <script id="shader-vs" type="x-shader/x-vertex">  
     attribute vec3 aVertexPosition;
     attribute vec3 aVertexNormal;
-    attribute vec4 aVertexColor;
+    
+    uniform vec4 uVertexColor;
     
     uniform mat4 uNormalMatrix;
     uniform mat4 uMVMatrix;
@@ -39,11 +40,9 @@
       float lambertTerm = dot(N,-L);
     
       //Final Color
-      vec4 Id = aVertexColor * uLightDiffuse * lambertTerm;
+      vec4 Id = uVertexColor * uLightDiffuse * lambertTerm;
       vColor = Id;
       vColor.a = 1.0;
-      
-      // vColor = aVertexColor;
     
       //Transformed vertex position
       gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
@@ -64,6 +63,8 @@
   </script>
 </head>
 <body onload="start()">
+  <h1>Gouraud shading and Lambertian reflection</h1>
+  <p>Simple example showing a rotating 3D cube with directional lighting.</p>
   <canvas id="glcanvas" width="640" height="480">
     Your browser doesn't appear to support the HTML5 <code>&lt;canvas&gt;</code> element.
   </canvas>
