@@ -11,7 +11,7 @@ var	Utils = {
 		var ctx = null;
 		
 		if (canvas == null){
-			alert('there is no canvas on this page');
+			console.log('there is no canvas on this page');
 			return null;
 		}
 		else {
