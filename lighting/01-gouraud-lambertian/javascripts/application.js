@@ -1,376 +1,136 @@
-var canvas;
-var gl;
 
-var cubeVerticesBuffer;
-var cubeVerticesColorBuffer;
-var cubeVerticesIndexBuffer;
-var cubeVerticesNormalBuffer;
-
-var cubeRotation = 30.0;
-var lastCubeUpdateTime = 0;
-
-var shaderProgram;
-var mvMatrix;
-var nMatrix;
-var perspectiveMatrix;
-var vertexPositionAttribute;
-var vertexNormalAttribute;
-
-function start() {
-  canvas 	= document.getElementById("glcanvas");
-	gl 			= WebGLUtils.setupWebGL(canvas);
-  
-  if (gl) {
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);  // Clear to black, fully opaque
-    gl.clearDepth(1.0);                 // Clear everything
-    gl.enable(gl.DEPTH_TEST);           // Enable depth testing
-    gl.depthFunc(gl.LEQUAL);            // Near things obscure far things
+/**
+*   Defines the initial values for the transformation matrices
+*/
+function initTransforms(){
+    //Initialize Model-View matrix
+    mvMatrix = camera.getViewTransform();
     
-    // Initialize the shaders; this is where all the lighting for the
-    // vertices and so forth is established.    
-    initShaders();
+    //Initialize Perspective matrix
+    mat4.identity(pMatrix);
+    mat4.perspective(30, c_width / c_height, 0.1, 1000.0, pMatrix);
     
-    // Here's where we call the routine that builds all the objects
-    // we'll be drawing.    
-    initBuffers();
+    //Initialize Normal matrix
+    mat4.identity(nMatrix);
+    mat4.set(mvMatrix, nMatrix);
+    mat4.inverse(nMatrix);
+    mat4.transpose(nMatrix);
     
-    // Set up to draw the scene periodically.    
-		drawScene();
-  }
+ }
+
+/**
+*   Updates the Model-View matrix if there is any translation or change in 
+*   coordinate system (world->camera or camera->world). Updates the Normal matrix according to the translation.
+*   Please notice that the normal matrix will ALWAYS operate in world coordinates.
+*   Called once per rendering cycle.
+*/
+function updateTransforms(){
+    mat4.perspective(30, c_width / c_height, 0.1, 1000.0, pMatrix);  // We can resize the screen at any point so the perspective matrix should be updated always.
 }
 
-//
-// initShaders
-//
-// Initialize the shaders, so WebGL knows how to light our scene.
-//
-function initShaders() {
-  var fragmentShader = getShader(gl, "shader-fs");
-  var vertexShader = getShader(gl, "shader-vs");
-  
-  // Create the shader program  
-  shaderProgram = gl.createProgram();
-  gl.attachShader(shaderProgram, vertexShader);
-  gl.attachShader(shaderProgram, fragmentShader);
-  gl.linkProgram(shaderProgram);
-  
-  // If creating the shader program failed, alert  
-  if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
-    alert("Unable to initialize the shader program.");
-  }
-  
-  gl.useProgram(shaderProgram);
-  
-  vertexPositionAttribute = gl.getAttribLocation(shaderProgram, "aVertexPosition");
-  gl.enableVertexAttribArray(vertexPositionAttribute);
 
-	vertexNormalAttribute = gl.getAttribLocation(shaderProgram, "aVertexNormal");
-	gl.enableVertexAttribArray(vertexNormalAttribute);
-		
-	shaderProgram.uMaterialDiffuse  = gl.getUniformLocation(shaderProgram, "uMaterialDiffuse");
-	shaderProgram.uLightDiffuse     = gl.getUniformLocation(shaderProgram, "uLightDiffuse");
-	shaderProgram.uLightDirection   = gl.getUniformLocation(shaderProgram, "uLightDirection");
-	
-	gl.uniform3fv(shaderProgram.uLightDirection,    [0.0,-1.0,-1.0]);
-	gl.uniform4fv(shaderProgram.uLightDiffuse,      [1.0,1.0,1.0,1.0]); 
-	gl.uniform4fv(shaderProgram.uMaterialDiffuse,   [0.5,0.8,0.1,1.0]);
-	
-	shaderProgram.uVertexColor  = gl.getUniformLocation(shaderProgram, "uVertexColor");	
-	gl.uniform4fv(shaderProgram.uVertexColor,    		[1.0,0.0,1.0,1.0]);
+/**
+* Maps the matrices to shader matrix uniforms
+*
+* Called once per rendering cycle. 
+*/
+function setMatrixUniforms(){
+    
+    gl.uniformMatrix4fv(prg.uMVMatrix, false, camera.getViewTransform());        //Maps the Model-View matrix to the uniform prg.uMVMatrix
+    
+    gl.uniformMatrix4fv(prg.uPMatrix, false, pMatrix);    //Maps the Perspective matrix to the uniform prg.uPMatrix
+    
+    mat4.transpose(camera.matrix, nMatrix);               //Calculates the Normal matrix 
+    gl.uniformMatrix4fv(prg.uNMatrix, false, nMatrix);    //Maps the Normal matrix to the uniform prg.uNMatrix
 }
 
-//
-// initBuffers
-//
-// Initialize the buffers we'll need. For this demo, we just have
-// one object -- a simple two-dimensional cube.
-//
-function initBuffers() {
-  
-  // Create a buffer for the cube's vertices.  
-  cubeVerticesBuffer = gl.createBuffer();
-  
-  // Select the cubeVerticesBuffer as the one to apply vertex
-  // operations to from here out.  
-  gl.bindBuffer(gl.ARRAY_BUFFER, cubeVerticesBuffer);
-  
-  // Now create an array of vertices for the cube.  
-  var vertices = [
-    // Front face
-    -1.0, -1.0,  1.0,
-     1.0, -1.0,  1.0,
-     1.0,  1.0,  1.0,
-    -1.0,  1.0,  1.0,
-    
-    // Back face
-    -1.0, -1.0, -1.0,
-    -1.0,  1.0, -1.0,
-     1.0,  1.0, -1.0,
-     1.0, -1.0, -1.0,
-    
-    // Top face
-    -1.0,  1.0, -1.0,
-    -1.0,  1.0,  1.0,
-     1.0,  1.0,  1.0,
-     1.0,  1.0, -1.0,
-    
-    // Bottom face
-    -1.0, -1.0, -1.0,
-     1.0, -1.0, -1.0,
-     1.0, -1.0,  1.0,
-    -1.0, -1.0,  1.0,
-    
-    // Right face
-     1.0, -1.0, -1.0,
-     1.0,  1.0, -1.0,
-     1.0,  1.0,  1.0,
-     1.0, -1.0,  1.0,
-    
-    // Left face
-    -1.0, -1.0, -1.0,
-    -1.0, -1.0,  1.0,
-    -1.0,  1.0,  1.0,
-    -1.0,  1.0, -1.0
-  ];
-  
-  // Now pass the list of vertices into WebGL to build the shape. We
-  // do this by creating a Float32Array from the JavaScript array,
-  // then use it to fill the current vertex buffer.  
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
+/**
+*  Configures the gl context
+*/
+var camera = null;
+var interactor = null;
 
-  // Set up the normals for the vertices, so that we can compute lighting.  
-  cubeVerticesNormalBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, cubeVerticesNormalBuffer);
-  
-	// Note that these could be calculated using the vertices & indices rather
-	// than declaring them explicitly
-  var vertexNormals = [
-    // Front
-     0.0,  0.0,  1.0,
-     0.0,  0.0,  1.0,
-     0.0,  0.0,  1.0,
-     0.0,  0.0,  1.0,
+function configure(){
     
-    // Back
-     0.0,  0.0, -1.0,
-     0.0,  0.0, -1.0,
-     0.0,  0.0, -1.0,
-     0.0,  0.0, -1.0,
+    gl.clearColor(0.3, 0.3, 0.3, 1.0);
+    gl.clearDepth(100.0);
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LEQUAL);
     
-    // Top
-     0.0,  1.0,  0.0,
-     0.0,  1.0,  0.0,
-     0.0,  1.0,  0.0,
-     0.0,  1.0,  0.0,
+    //Creates and sets up the camera location
+    camera = new Camera(CAMERA_ORBIT_TYPE);
+    camera.goHome([0, 0, 50]);
+    camera.hookRenderer = draw;
     
-    // Bottom
-     0.0, -1.0,  0.0,
-     0.0, -1.0,  0.0,
-     0.0, -1.0,  0.0,
-     0.0, -1.0,  0.0,
+    //Creates and sets up the mouse and keyboard interactor
+    var canvas = document.getElementById('glcanvas');
+    interactor = new CameraInteractor(camera, canvas);
     
-    // Right
-     1.0,  0.0,  0.0,
-     1.0,  0.0,  0.0,
-     1.0,  0.0,  0.0,
-     1.0,  0.0,  0.0,
-    
-    // Left
-    -1.0,  0.0,  0.0,
-    -1.0,  0.0,  0.0,
-    -1.0,  0.0,  0.0,
-    -1.0,  0.0,  0.0
-  ];
-  
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexNormals), gl.STATIC_DRAW);
-  
-
-
-  // Build the element array buffer; this specifies the indices
-  // into the vertex array for each face's vertices.  
-  cubeVerticesIndexBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cubeVerticesIndexBuffer);
-  
-  // This array defines each face as two triangles, using the
-  // indices into the vertex array to specify each triangle's
-  // position.  
-  var cubeVertexIndices = [
-    0,  1,  2,      0,  2,  3,    // front
-    4,  5,  6,      4,  6,  7,    // back
-    8,  9,  10,     8,  10, 11,   // top
-    12, 13, 14,     12, 14, 15,   // bottom
-    16, 17, 18,     16, 18, 19,   // right
-    20, 21, 22,     20, 22, 23    // left
-  ]
-  
-  // Now send the element array to GL  
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(cubeVertexIndices), gl.STATIC_DRAW);
+    //init transforms
+    initTransforms();
 }
 
-//
-// drawScene
-//
-// Draw the scene.
-//
-function drawScene() {	
-  // Clear the canvas before we start drawing on it.
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  
-  // Establish the perspective with which we want to view the
-  // scene. Our field of view is 45 degrees, with a width/height
-  // ratio of 640:480, and we only want to see objects between 0.1 units
-  // and 100 units away from the camera.  
-  perspectiveMatrix = makePerspective(45, 640.0/480.0, 0.1, 100.0);
-  
-  // Set the drawing position to the "identity" point, which is
-  // the center of the scene.  
-  loadIdentity();
-  
-  // Now move the drawing position a bit to where we want to start
-  // drawing the cube.  
-  mvTranslate([-0.0, 0.0, -6.0]);
-  
-  // Save the current matrix, then rotate before we draw.  
-  mvPushMatrix();
-  mvRotate(cubeRotation, [1, 0, 1]);
-  
-  // Draw the cube by binding the array buffer to the cube's vertices
-  // array, setting attributes, and pushing it to GL.  
-  gl.bindBuffer(gl.ARRAY_BUFFER, cubeVerticesBuffer);
-  gl.vertexAttribPointer(vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
 
-  // Bind the normals buffer to the shader attribute.  
-  gl.bindBuffer(gl.ARRAY_BUFFER, cubeVerticesNormalBuffer);
-  gl.vertexAttribPointer(vertexNormalAttribute, 3, gl.FLOAT, false, 0, 0);
-  
-  // Draw the cube.  
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, cubeVerticesIndexBuffer);
-  setMatrixUniforms();
-  gl.drawElements(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0);
-  
-  // Restore the original matrix  
-  mvPopMatrix();
-  
-  // Update the rotation for the next draw, if it's time to do so.  
-  var currentTime = (new Date).getTime();
-
-  if (lastCubeUpdateTime){
-    var delta = currentTime - lastCubeUpdateTime;
-    
-    cubeRotation += (30 * delta) / 1000.0;
-  }
-  
-  lastCubeUpdateTime = currentTime;
-
-	window.requestAnimFrame(drawScene);
+/**
+* Loads the scene
+*/
+function load(){
+	Scene.addObject(Cube);
 }
 
-function setMatrixUniforms() {
-  var pUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
-  gl.uniformMatrix4fv(pUniform, false, new Float32Array(perspectiveMatrix.flatten()));
 
-  var mvUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
-  gl.uniformMatrix4fv(mvUniform, false, new Float32Array(mvMatrix.flatten()));
-  
-  var normalMatrix = mvMatrix.inverse();
-  normalMatrix = normalMatrix.transpose();
-  var nUniform = gl.getUniformLocation(shaderProgram, "uNormalMatrix");
-  gl.uniformMatrix4fv(nUniform, false, new Float32Array(normalMatrix.flatten()));
-}
+/**
+* invoked on every rendering cycle
+*/
+function draw() {
+    gl.viewport(0, 0, c_width, c_height);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        
+    try{        
+        updateTransforms();   
+        setMatrixUniforms(); 
+        
+        for (var i = 0; i < Scene.objects.length; i++){
 
-//
-// getShader
-//
-// Loads a shader program by scouring the current document,
-// looking for a script with the specified ID.
-//
-function getShader(gl, id) {
-  var shaderScript = document.getElementById(id);
-  
-  // Didn't find an element with the specified ID; abort.  
-  if (!shaderScript) {
-    return null;
-  }
-  
-  // Walk through the source element's children, building the
-  // shader source string.  
-  var theSource = "";
-  var currentChild = shaderScript.firstChild;
-  
-  while(currentChild) {
-    if (currentChild.nodeType == 3) {
-      theSource += currentChild.textContent;
+            var object = Scene.objects[i];
+            
+            //Setting uniforms
+						gl.uniform3fv(prg.uLightDirection,    [0.0, -1.0, -1.0]);
+						gl.uniform4fv(prg.uLightDiffuse,      [1.0, 1.0, 1.0, 1.0]);
+            gl.uniform4fv(prg.uMaterialDiffuse, 	object.diffuse);
+            
+            //Setting attributes            
+            gl.bindBuffer(gl.ARRAY_BUFFER, object.vbo);
+            gl.vertexAttribPointer(prg.aVertexPosition, 3, gl.FLOAT, false, 0, 0);
+            gl.enableVertexAttribArray(prg.aVertexPosition);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, object.nbo);
+            gl.vertexAttribPointer(prg.aVertexNormal, 3, gl.FLOAT, false, 0, 0);
+            gl.enableVertexAttribArray(prg.aVertexNormal);
+            
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, object.ibo);
+            
+            gl.drawElements(gl.TRIANGLES, object.indices.length, gl.UNSIGNED_SHORT, 0);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, null);
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);            
+        }
     }
-    
-    currentChild = currentChild.nextSibling;
-  }
-  
-  // Now figure out what type of shader script we have,
-  // based on its MIME type.  
-  var shader;
-  
-  if (shaderScript.type == "x-shader/x-fragment") {
-    shader = gl.createShader(gl.FRAGMENT_SHADER);
-  } else if (shaderScript.type == "x-shader/x-vertex") {
-    shader = gl.createShader(gl.VERTEX_SHADER);
-  } else {
-    return null;  // Unknown shader type
-  }
-  
-  // Send the source to the shader object  
-  gl.shaderSource(shader, theSource);
-  
-  // Compile the shader program  
-  gl.compileShader(shader);
-  
-  // See if it compiled successfully  
-  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    alert("An error occurred compiling the shaders: " + gl.getShaderInfoLog(shader));
-    return null;
-  }
-  
-  return shader;
+    catch(err){
+        alert(err);
+        console.error(err.description);
+    }
 }
 
-//
-// Matrix utility functions
-//
+/**
+* Entry point. This function is invoked when the page is loaded
+*/
+var app = null;
+function runWebGLApp() {
+    app = new WebGLApp("glcanvas")
+    app.configureGLHook = configure;
+    app.loadSceneHook   = load;
+    app.drawSceneHook   = draw;
+    app.run();
 
-function loadIdentity() {
-  mvMatrix = Matrix.I(4);
-}
-
-function multMatrix(m) {
-  mvMatrix = mvMatrix.x(m);
-}
-
-function mvTranslate(v) {
-  multMatrix(Matrix.Translation($V([v[0], v[1], v[2]])).ensure4x4());
-}
-
-var mvMatrixStack = [];
-
-function mvPushMatrix(m) {
-  if (m) {
-    mvMatrixStack.push(m.dup());
-    mvMatrix = m.dup();
-  } else {
-    mvMatrixStack.push(mvMatrix.dup());
-  }
-}
-
-function mvPopMatrix() {
-  if (!mvMatrixStack.length) {
-    throw("Can't pop from an empty matrix stack.");
-  }
-  
-  mvMatrix = mvMatrixStack.pop();
-  return mvMatrix;
-}
-
-function mvRotate(angle, v) {
-  var inRadians = angle * Math.PI / 180.0;
-  
-  var m = Matrix.Rotation(inRadians, $V([v[0], v[1], v[2]])).ensure4x4();
-  multMatrix(m);
 }

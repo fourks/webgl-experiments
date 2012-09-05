@@ -1,24 +1,28 @@
 <html>
 <head>
-  <title>Gouraud shading and Lambertian reflection</title>
+  <title>Interactive Gouraud shading and Lambertian reflection</title>
 
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-
-  <link rel="stylesheet" href="/stylesheets/screen.css" type="text/css">
-
-  <script type="text/javascript" src="javascripts/lib/webgl-utils.js"></script>
-  <script type="text/javascript" src="javascripts/lib/sylvester.src.js"></script>
-  <script type="text/javascript" src="javascripts/lib/glUtils.js"></script>
-  <script type="text/javascript" src="javascripts/application.js"></script>
+                                      
+  <script type="text/javascript" src="/javascripts/math/gl-matrix-min.js"></script>
+  <script type="text/javascript" src="/javascripts/webgl/Globals.js"></script>
+  <script type="text/javascript" src="/javascripts/webgl/Utils.js"></script>
+  <script type="text/javascript" src="/javascripts/webgl/Program.js"></script>
+  <script type="text/javascript" src="/javascripts/webgl/Scene.js"></script>
+  <script type="text/javascript" src="/javascripts/webgl/Cube.js"></script>
+  <script type="text/javascript" src="/javascripts/webgl/Axis.js"></script>
+  <script type="text/javascript" src="/javascripts/webgl/Floor.js"></script>
+  <script type="text/javascript" src="/javascripts/webgl/Camera.js"></script>
+  <script type="text/javascript" src="/javascripts/webgl/CameraInteractor.js"></script>
+  <script type="text/javascript" src="/javascripts/webgl/WebGLApp.js"></script>
+  <script type="text/javascript" src="/javascripts/application.js"></script>
   
   <!-- Vertex shader program -->
   <script id="shader-vs" type="x-shader/x-vertex">  
     attribute vec3 aVertexPosition;
     attribute vec3 aVertexNormal;
     
-    uniform vec4 uVertexColor;
-    
-    uniform mat4 uNormalMatrix;
+    uniform mat4 uNMatrix;
     uniform mat4 uMVMatrix;
     uniform mat4 uPMatrix;
       
@@ -30,7 +34,7 @@
     
     void main(void) {
       //Transformed normal position
-      vec3 N = normalize(vec3(uNormalMatrix * vec4(aVertexNormal, 1.0)));
+      vec3 N = normalize(vec3(uNMatrix * vec4(aVertexNormal, 1.0)));
     
       //Normalize light to calculate lambertTerm
       vec3 L = normalize(uLightDirection);
@@ -39,7 +43,7 @@
       float lambertTerm = dot(N,-L);
     
       //Final Color
-      vec4 Id = uVertexColor * uLightDiffuse * lambertTerm;
+      vec4 Id = uMaterialDiffuse * uLightDiffuse * lambertTerm;
       vColor = Id;
       vColor.a = 1.0;
     
@@ -61,12 +65,14 @@
     }
   </script>
 </head>
-<body onload="start()">
-  <h1>Gouraud shading and Lambertian reflection</h1>
-  <p>Simple example showing a rotating 3D cube with directional lighting.</p>
+<body onload="runWebGLApp()">
+  <h1>Interactive Gouraud shading and Lambertian reflection</h1>
+  <p>Simple example showing an interactive 3D cube with directional lighting and an orbiting camera.</p>
+  
   <canvas id="glcanvas" width="640" height="480">
     Your browser doesn't appear to support the HTML5 <code>&lt;canvas&gt;</code> element.
   </canvas>
+  
   <h2>References</h2>
   <ul>
     <li><a href="http://en.wikipedia.org/wiki/Gouraud_shading">Gouraud shading</li>
