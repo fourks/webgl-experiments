@@ -8,20 +8,8 @@ var pMatrix     = mat4.create();    // The projection matrix
 var nMatrix     = mat4.create();    // The normal matrix
 var cMatrix     = mat4.create();    // The camera matrix
 
-var home     = [0,-2,-50];
-var position = [0,-2,-50];
-var rotation = [0,0,0];
-
-var coords = -1;
-
 var camera = null;
 var interactor = null;
-
-var COORDS_WORLD = 1;
-var COORDS_CAMERA = 2;
-var requestUpdate = false;
-
-var updateLightPosition = false;
 
 /**
 * Entry point. This function is invoked when the page is loaded
