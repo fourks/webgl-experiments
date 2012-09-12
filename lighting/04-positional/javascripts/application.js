@@ -33,7 +33,7 @@ function configure()
 
   //Creates and sets up the camera location
   camera = new Camera(CAMERA_ORBIT_TYPE);
-  camera.goHome([0, 0, 100]);
+  camera.goHome([0, 0, 75]);
   camera.hookRenderer = draw;
 
   //Creates and sets up the mouse and keyboard interactor
@@ -53,17 +53,18 @@ function configure()
 */
 function initLights()
 {
-  // Light uniforms
-  gl.uniform3fv(prg.uLightPosition,     [15.0, 15.0, 15.0]); 
-  gl.uniform4fv(prg.uLightAmbient,      [1.0, 1.0, 1.0, 1.0]);
-  gl.uniform4fv(prg.uLightDiffuse,      [1.0, 1.0, 1.0, 1.0]);
-  gl.uniform4fv(prg.uLightSpecular,     [1.0, 1.0, 1.0, 1.0]);
+  //Light uniforms
+  gl.uniform3fv(prg.uLightPosition, [8.0,8.0,15.0]);
+  gl.uniform4fv(prg.uLightAmbient , [1.0,1.0,1.0,1.0]);
+  gl.uniform4fv(prg.uLightDiffuse,  [1.0,1.0,1.0,1.0]);
+  gl.uniform4fv(prg.uLightSpecular, [1.0,1.0,1.0,1.0]);
 
-  // Object uniforms
-  gl.uniform1f(prg.uShininess, 200.0);
-  gl.uniform4fv(prg.uMaterialAmbient, 	[0.1, 0.1, 0.1, 1.0]);
-  gl.uniform4fv(prg.uMaterialDiffuse, 	[0.8, 0.0, 0.8, 1.0]);
-  gl.uniform4fv(prg.uMaterialSpecular, 	[1.0, 1.0, 1.0, 1.0]);
+  //Object Uniforms
+  gl.uniform4fv(prg.uMaterialAmbient,   [0.1,0.1,0.1,1.0]);
+  gl.uniform4fv(prg.uMaterialDiffuse,   [0.5,0.8,0.1,1.0]);
+  gl.uniform4fv(prg.uMaterialSpecular,  [0.6,0.6,0.6,1.0]);
+  gl.uniform1f(prg.uShininess,          200.0);
+
 }
 
 /**
@@ -93,7 +94,8 @@ function draw()
       
 			transforms.calculateModelView();
       transforms.push();
-        
+      
+      // Move the smallsphere object to the light position as a visual marker
       if (object.alias == 'smallsphere')
       {
         var lightPos = gl.getUniform(prg, prg.uLightPosition);
@@ -103,18 +105,9 @@ function draw()
       transforms.setMatrixUniforms();
       transforms.pop();
 
-      if (object.ambient)
-      {
-        gl.uniform4fv(prg.uMaterialDiffuse, object.ambient);
-      }      
-      if (object.diffuse)
-      {
-        gl.uniform4fv(prg.uMaterialDiffuse, object.diffuse);
-      }
-      if (object.specular)
-      {
-        gl.uniform4fv(prg.uMaterialSpecular, object.specular); 
-      }
+      if (object.ambient) gl.uniform4fv(prg.uMaterialDiffuse, object.ambient);            
+      if (object.diffuse) gl.uniform4fv(prg.uMaterialDiffuse, object.diffuse);
+      if (object.specular) gl.uniform4fv(prg.uMaterialSpecular, object.specular); 
 
       //Setting vertex shader attributes
       gl.bindBuffer(gl.ARRAY_BUFFER, object.vbo);
