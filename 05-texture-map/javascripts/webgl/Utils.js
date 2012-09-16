@@ -34,6 +34,7 @@ var	Utils = {
   		return null;
   	}
   	else {
+      ctx = WebGLDebugUtils.makeDebugContext(ctx);      
   		return ctx;
   	}
   },
