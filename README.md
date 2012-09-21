@@ -3,7 +3,7 @@ webgl
 
 Things I’d like to try:
 
-* Add a performance monitor to display ms/frame rendering times
+* ~~Add a performance monitor to display ms/frame rendering times~~
 * Optimisation, based on the tips from the Google IO WebGL optimisation video
 * Multiple light sources, directional and positional
 * Loading and rendering complex models imported from 3D software
