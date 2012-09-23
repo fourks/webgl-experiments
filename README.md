@@ -18,3 +18,5 @@ Things I’d like to try:
 * Animation and picking - increasing interactivity
 * Rendering shadows
 * Particle effects / effects using noise (e.g. dynamic terrain, etc)
+* Investigate various WebGL JavaScript frameworks (e.g. three.js, tdl, SpiderGL, etc)
+* Integrate JSLint into an automated build process
