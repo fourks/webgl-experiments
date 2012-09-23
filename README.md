@@ -14,6 +14,7 @@ Things I’d like to try:
 * Rendering an isometric world with Syndicate Wars style camera control
 * UV mapping, creating more realism with textures
 * Light mapping, improving performance by baking lights rather than purely dynamic
+* Rendering multiple views/cameras of the same scene simultaneously (as in the Google IO demo)
 * Using normal maps (and other non-obvious uses for baking data into textures)
 * Animation and picking - increasing interactivity
 * Rendering shadows
