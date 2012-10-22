@@ -105,7 +105,7 @@
       vec4 vColor = Ia + Id + Is;
       vColor.a = 1.0;
       
-      gl_FragColor = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t)) * vColor;
+      gl_FragColor = texture2D(uSampler, vTextureCoord);
     }
   </script>
 </head>

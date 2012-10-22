@@ -99,10 +99,10 @@ function initTextures()
 function onTextureLoaded(image, texture)
 {
   gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_NEAREST);
-  gl.generateMipmap(gl.TEXTURE_2D);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
   gl.bindTexture(gl.TEXTURE_2D, null);
 }
 
@@ -112,7 +112,7 @@ function onTextureLoaded(image, texture)
 function load()
 {
   Scene.objects = [];
-  Scene.loadObject('assets/drillbugtest.json');
+  Scene.loadObject('assets/test.js');
 }
 
 /**
@@ -147,8 +147,6 @@ function draw()
       gl.vertexAttribPointer(prg.aVertexNormal, 3, gl.FLOAT, false, 0, 0);
       gl.enableVertexAttribArray(prg.aVertexNormal);
 
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, object.ibo);
-      
       gl.bindBuffer(gl.ARRAY_BUFFER, object.tex);
       gl.vertexAttribPointer(prg.aVertexTexCoord, 2, gl.FLOAT, false, 0, 0);
       gl.enableVertexAttribArray(prg.aVertexTexCoord);
@@ -157,6 +155,7 @@ function draw()
       gl.bindTexture(gl.TEXTURE_2D, cubeTexture);
       gl.uniform1i(gl.getUniformLocation(prg, "uSampler"), 0);
 
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, object.ibo);
       gl.drawElements(gl.TRIANGLES, object.indices.length, gl.UNSIGNED_SHORT, 0);
 
       gl.bindBuffer(gl.ARRAY_BUFFER, null);
