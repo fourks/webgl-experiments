@@ -6,7 +6,7 @@ var c_height = 0;  // Variable to store the height of the canvas
 var camera = null;
 var interactor = null;
 var transforms = null;
-var cubeTexture = null;
+var modelTexture = null;
 
 var stats = null;
 
@@ -68,10 +68,10 @@ function configure()
 
 function initTextures()
 {
-  cubeTexture = gl.createTexture();
-  cubeImage = new Image();
-  cubeImage.onload = function() { onTextureLoaded(cubeImage, cubeTexture); }
-  cubeImage.src = "assets/drillBug_texture.png";
+  modelTexture = gl.createTexture();
+  modelImage = new Image();
+  modelImage.onload = function() { onTextureLoaded(modelImage, modelTexture); }
+  modelImage.src = "assets/drillBug_texture.png";
 }
 
 function onTextureLoaded(image, texture)
@@ -122,7 +122,7 @@ function draw()
       gl.enableVertexAttribArray(prg.aVertexTexCoord);
       
       gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, cubeTexture);
+      gl.bindTexture(gl.TEXTURE_2D, modelTexture);
       gl.uniform1i(gl.getUniformLocation(prg, "uSampler"), 0);
 
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, object.ibo);
