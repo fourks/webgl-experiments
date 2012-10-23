@@ -45,14 +45,14 @@ function createStats()
 
 function configure()
 {    
-  gl.clearColor(0.3, 0.3, 0.3, 1.0);
+  gl.clearColor(0.0, 0.0, 0.0, 1.0);
   gl.clearDepth(100.0);
   gl.enable(gl.DEPTH_TEST);
   gl.depthFunc(gl.LEQUAL);
 
   //Creates and sets up the camera location
   camera = new Camera(CAMERA_ORBIT_TYPE);
-  camera.goHome([0, 0, 25]);
+  camera.goHome([0, 1, 15]);
 
   //Creates and sets up the mouse and keyboard interactor
   var canvas = document.getElementById('glcanvas');
@@ -62,30 +62,8 @@ function configure()
   transforms = new SceneTransforms(camera);
   transforms.init();
   
-  //Intialise light values
-  initLights();
-  
   //Load textures
   initTextures();
-}
-
-/**
-* Defines the initial values for the uniforms related to lighting
-*/
-function initLights()
-{
-  //Light uniforms
-  gl.uniform3fv(prg.uLightPosition, [8.0,8.0,15.0]);
-  gl.uniform4fv(prg.uLightAmbient , [1.0,1.0,1.0,1.0]);
-  gl.uniform4fv(prg.uLightDiffuse,  [1.0,1.0,1.0,1.0]);
-  gl.uniform4fv(prg.uLightSpecular, [1.0,1.0,1.0,1.0]);
-
-  //Object Uniforms
-  gl.uniform4fv(prg.uMaterialAmbient,   [0.1,0.1,0.1,1.0]);
-  gl.uniform4fv(prg.uMaterialDiffuse,   [0.5,0.8,0.1,1.0]);
-  gl.uniform4fv(prg.uMaterialSpecular,  [0.6,0.6,0.6,1.0]);
-  gl.uniform1f(prg.uShininess,          200.0);
-
 }
 
 function initTextures()
@@ -112,7 +90,7 @@ function onTextureLoaded(image, texture)
 function load()
 {
   Scene.objects = [];
-  Scene.loadObject('assets/test.js');
+  Scene.loadObject('assets/drillbug.js', 'drillbug');
 }
 
 /**
@@ -134,18 +112,10 @@ function draw()
 			transforms.calculateModelView();
       transforms.setMatrixUniforms();
 
-      if (object.ambient) gl.uniform4fv(prg.uMaterialDiffuse, object.ambient);            
-      if (object.diffuse) gl.uniform4fv(prg.uMaterialDiffuse, object.diffuse);
-      if (object.specular) gl.uniform4fv(prg.uMaterialSpecular, object.specular); 
-
       //Setting vertex shader attributes
       gl.bindBuffer(gl.ARRAY_BUFFER, object.vbo);
       gl.vertexAttribPointer(prg.aVertexPosition, 3, gl.FLOAT, false, 0, 0);
       gl.enableVertexAttribArray(prg.aVertexPosition);
-
-      gl.bindBuffer(gl.ARRAY_BUFFER, object.nbo);
-      gl.vertexAttribPointer(prg.aVertexNormal, 3, gl.FLOAT, false, 0, 0);
-      gl.enableVertexAttribArray(prg.aVertexNormal);
 
       gl.bindBuffer(gl.ARRAY_BUFFER, object.tex);
       gl.vertexAttribPointer(prg.aVertexTexCoord, 2, gl.FLOAT, false, 0, 0);

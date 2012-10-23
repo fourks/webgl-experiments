@@ -64,23 +64,10 @@ var Program = {
     gl.useProgram(prg);
 
     prg.aVertexPosition  = gl.getAttribLocation(prg, "aVertexPosition");
-    prg.aVertexNormal    = gl.getAttribLocation(prg, "aVertexNormal");
     prg.aVertexTexCoord  = gl.getAttribLocation(prg, "aTextureCoord");
 
     prg.uNMatrix         = gl.getUniformLocation(prg, "uNMatrix");
     prg.uMVMatrix        = gl.getUniformLocation(prg, "uMVMatrix");
     prg.uPMatrix         = gl.getUniformLocation(prg, "uPMatrix");
-    
-    prg.uShininess        = gl.getUniformLocation(prg, "uShininess");
-
-    prg.uLightPosition   = gl.getUniformLocation(prg, "uLightPosition");
-    
-    prg.uLightAmbient     = gl.getUniformLocation(prg, "uLightAmbient");
-    prg.uLightDiffuse     = gl.getUniformLocation(prg, "uLightDiffuse");
-    prg.uLightSpecular    = gl.getUniformLocation(prg, "uLightSpecular");
-
-    prg.uMaterialAmbient  = gl.getUniformLocation(prg, "uMaterialAmbient");    
-    prg.uMaterialDiffuse  = gl.getUniformLocation(prg, "uMaterialDiffuse");
-    prg.uMaterialSpecular = gl.getUniformLocation(prg, "uMaterialSpecular");
   }
 }

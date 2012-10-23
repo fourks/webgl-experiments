@@ -36,42 +36,15 @@ var Scene = {
         }
     },
     
-    addObject : function(object) {
-        
-        if (object.perVertexColor   === undefined)    {   object.perVertexColor   = false;            }
-        if (object.wireframe        === undefined)    {   object.wireframe        = false;            }
-        if (object.diffuse          === undefined)    {   object.diffuse          = [1.0,1.0,1.0,1.0];}
-        if (object.texture          === undefined)    {   object.texture          = true;            }
-
-        console.log("Vertices",object.vertices.length);
-        console.log("Normals", object.normals.length);
-        console.log("Indices", object.indices.length);
-        console.log("UVs", object.uvs.length);
-    
+    addObject : function(object) {    
         var vertexBufferObject = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, vertexBufferObject);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(object.vertices), gl.STATIC_DRAW);
-          
-        var normalBufferObject = gl.createBuffer();
-        gl.bindBuffer(gl.ARRAY_BUFFER, normalBufferObject);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(object.normals), gl.STATIC_DRAW);
-    
-        var colorBufferObject;
-           
-        if (object.perVertexColor) {
-          colorBufferObject = gl.createBuffer();
-          gl.bindBuffer(gl.ARRAY_BUFFER, colorBufferObject);
-          gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(object.colors), gl.STATIC_DRAW);
-          object.cbo = colorBufferObject;
-        }
        
         var vertexTextureCoordBufferObject;
-       
-        if (object.texture) {
-         var vertexTextureCoordBufferObject = gl.createBuffer();
-         gl.bindBuffer(gl.ARRAY_BUFFER, vertexTextureCoordBufferObject); 
-         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(object.uvs), gl.STATIC_DRAW);
-        }
+        var vertexTextureCoordBufferObject = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexTextureCoordBufferObject); 
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(object.uvs), gl.STATIC_DRAW);
     
         var indexBufferObject = gl.createBuffer();
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBufferObject);
@@ -79,7 +52,6 @@ var Scene = {
         
         object.vbo = vertexBufferObject;
         object.ibo = indexBufferObject;
-        object.nbo = normalBufferObject;
         object.tex = vertexTextureCoordBufferObject;
 
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
