@@ -6,7 +6,7 @@ Things I’d like to try:
 * ~~Add a performance monitor to display ms/frame rendering times~~
 * ~~Loading and rendering models imported from 3D software~~
 * ~~UV mapping, creating more realism with textures~~
-* Writing a robust FBX>>JSON exporter on top of the Autodesk FBX SDK
+* ~~Writing a robust FBX>>JSON exporter on top of the Autodesk FBX SDK~~
 * Imported 3D models with animations
 * Multiple light sources + visualising the light sources
 * Blending and alpha transparency
