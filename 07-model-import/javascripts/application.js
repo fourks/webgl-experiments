@@ -62,8 +62,30 @@ function configure()
   transforms = new SceneTransforms(camera);
   transforms.init();
   
+  //Intialise light values
+  initLights();
+  
   //Load textures
   initTextures();
+}
+
+/**
+* Defines the initial values for the uniforms related to lighting
+*/
+function initLights()
+{
+  //Light uniforms
+  gl.uniform3fv(prg.uLightPosition, [8.0,8.0,15.0]);
+  gl.uniform4fv(prg.uLightAmbient , [1.0,1.0,1.0,1.0]);
+  gl.uniform4fv(prg.uLightDiffuse,  [1.0,1.0,1.0,1.0]);
+  gl.uniform4fv(prg.uLightSpecular, [1.0,1.0,1.0,1.0]);
+
+  //Object Uniforms
+  gl.uniform4fv(prg.uMaterialAmbient,   [0.5, 0.5, 0.5, 0.5]);
+  gl.uniform4fv(prg.uMaterialDiffuse,   [0.5, 0.5, 0.5, 0.5]);
+  gl.uniform4fv(prg.uMaterialSpecular,  [0.5, 0.5, 0.5, 0.5]);
+  gl.uniform1f(prg.uShininess,          200.0);
+
 }
 
 function initTextures()
@@ -116,6 +138,10 @@ function draw()
       gl.bindBuffer(gl.ARRAY_BUFFER, object.vbo);
       gl.vertexAttribPointer(prg.aVertexPosition, 3, gl.FLOAT, false, 0, 0);
       gl.enableVertexAttribArray(prg.aVertexPosition);
+      
+      gl.bindBuffer(gl.ARRAY_BUFFER, object.nbo);
+      gl.vertexAttribPointer(prg.aVertexNormal, 3, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(prg.aVertexNormal);
 
       gl.bindBuffer(gl.ARRAY_BUFFER, object.tex);
       gl.vertexAttribPointer(prg.aVertexTexCoord, 2, gl.FLOAT, false, 0, 0);
@@ -126,7 +152,7 @@ function draw()
       gl.uniform1i(gl.getUniformLocation(prg, "uSampler"), 0);
 
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, object.ibo);
-      gl.drawElements(gl.TRIANGLES, object.indices.length, gl.UNSIGNED_SHORT, 0);
+      gl.drawElements(gl.TRIANGLES, object.faces.length, gl.UNSIGNED_SHORT, 0);
 
       gl.bindBuffer(gl.ARRAY_BUFFER, null);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);

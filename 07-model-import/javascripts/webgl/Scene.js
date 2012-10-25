@@ -45,13 +45,18 @@ var Scene = {
         var vertexTextureCoordBufferObject = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, vertexTextureCoordBufferObject); 
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(object.uvs), gl.STATIC_DRAW);
+        
+        var normalBufferObject = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, normalBufferObject);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(object.normals), gl.STATIC_DRAW);
     
         var indexBufferObject = gl.createBuffer();
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBufferObject);
-        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(object.indices), gl.STATIC_DRAW);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(object.faces), gl.STATIC_DRAW);
         
         object.vbo = vertexBufferObject;
         object.ibo = indexBufferObject;
+        object.nbo = normalBufferObject;
         object.tex = vertexTextureCoordBufferObject;
 
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
