@@ -1,0 +1,120 @@
+<html>
+<head>
+  <title>Model Import 2</title>
+
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+
+  <script type="text/javascript" src="javascripts/webgl-debug.js"></script>
+  <script type="text/javascript" src="javascripts/stats.js"></script>
+  <script type="text/javascript" src="javascripts/math/gl-matrix.js"></script>
+  <script type="text/javascript" src="javascripts/webgl/Utils.js"></script>
+  <script type="text/javascript" src="javascripts/webgl/Program.js"></script>
+  <script type="text/javascript" src="javascripts/webgl/Scene.js"></script>
+  <script type="text/javascript" src="javascripts/webgl/SceneTransforms.js"></script>
+  <script type="text/javascript" src="javascripts/webgl/Camera.js"></script>
+  <script type="text/javascript" src="javascripts/webgl/CameraInteractor.js"></script>
+  <script type="text/javascript" src="javascripts/webgl/WebGLApp.js"></script>
+  <script type="text/javascript" src="javascripts/application.js"></script>
+  
+  <!-- Vertex shader program -->
+  <script id="shader-vs" type="x-shader/x-vertex">
+    attribute vec3 aVertexPosition;
+    attribute vec3 aVertexNormal;
+    attribute vec2 aTextureCoord;
+
+    uniform mat4 uMVMatrix; 
+    uniform mat4 uPMatrix; 
+    uniform mat4 uNMatrix;
+    
+    uniform vec3 uLightPosition;
+
+    varying vec3 vNormal;
+    varying vec3 vLightRay;
+    varying vec3 vEyeVec;
+    varying vec2 vTextureCoord;
+
+    void main(void) {
+      //Transformed vertex position
+      vec4 vertex = uMVMatrix * vec4(aVertexPosition, 1.0);
+    
+      //Transformed normal position
+      vNormal = vec3(uNMatrix * vec4(aVertexNormal, 1.0));
+      
+      //Transformed light position
+      vec4 light = uMVMatrix * vec4(uLightPosition, 1.0);
+      
+      //Light position
+      vLightRay = vertex.xyz-light.xyz;
+ 
+      //Vector Eye
+      vEyeVec = -vec3(vertex.xyz);
+      
+      //Proxy on the texture coord
+      vTextureCoord = aTextureCoord;
+
+      //Transformed vertex position
+      gl_Position = uPMatrix * vertex;
+    }
+  </script>
+
+  <!-- Fragment shader program -->
+  <script id="shader-fs" type="x-shader/x-fragment">
+    #ifdef GL_ES
+      precision highp float;
+    #endif
+    
+    uniform sampler2D uSampler;
+    
+    uniform float uShininess;
+    
+    uniform vec4 uLightAmbient;
+    uniform vec4 uLightDiffuse;
+    uniform vec4 uLightSpecular;
+    
+    uniform vec4 uMaterialAmbient;
+    uniform vec4 uMaterialDiffuse;
+    uniform vec4 uMaterialSpecular;
+    
+    varying vec3 vNormal;
+    varying vec3 vLightRay;
+    varying vec3 vEyeVec;
+    varying vec2 vTextureCoord;
+
+    void main(void) {
+      // When we pass vectors as varying, it’s possible they denormalized in the interpolation step
+      vec3 L = normalize(vLightRay);
+      vec3 N = normalize(vNormal);
+      
+      float lambertTerm = dot(N, -L);
+      vec4 Ia = uLightAmbient * uMaterialAmbient;
+      vec4 Id = vec4(0.0,0.0,0.0,1.0);
+      vec4 Is = vec4(0.0,0.0,0.0,1.0);
+      
+      if (lambertTerm > 0.0)
+      {
+        Id = uLightDiffuse * uMaterialDiffuse * lambertTerm;
+        
+        vec3 E = normalize(vEyeVec);
+        vec3 R = reflect(L, N);
+        float specular = pow( max( dot(R , E), 0.0), uShininess);
+        
+        Is = uLightSpecular * uMaterialSpecular * specular;
+      }
+      
+      vec4 vColor = Ia + Id + Is;
+      vColor.a = 1.0;
+      
+      gl_FragColor = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t)) * vColor;
+    }
+  </script>
+
+</head>
+<body onload="initialise()">
+  <h1>Model Import 2</h1>
+  <p>Rednering a low-poly model—exported from Maya as FBX then converted to JSON—with texture and UV map.</p>
+  
+  <canvas id="glcanvas" width="640" height="480">
+    Your browser doesn't appear to support the HTML5 <code>&lt;canvas&gt;</code> element.
+  </canvas>
+</body>
+</html>
