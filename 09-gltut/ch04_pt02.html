@@ -1,0 +1,313 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <title>Chapter 4, Part 2 - Positioning</title>
+ 
+  <style>
+    body {
+      background-color: #000000;
+      margin: 0px;
+      overflow: hidden;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <canvas width="512" height="512"></canvas>
+
+  <script id="vs" type="x-shader/vertex">
+    attribute vec4 aVertexPosition;
+    attribute vec4 aVertexColor;
+
+    uniform mat4 perspectiveMatrix;
+
+    varying vec4 vColor;
+
+    void main()
+    {
+      vec4 cameraPos = aVertexPosition + vec4(0.5, 0.5, 0.0, 0.0);;
+      vec4 clipPos;
+
+      // Simplify the perspective projection by using a 4x4 matrix to represent the transform
+      // Note the order used in the multiplication - matrix math is *not* commutative
+      gl_Position = perspectiveMatrix * cameraPos;
+
+      vColor = aVertexColor;
+    }
+  </script>
+
+  <script id="fs" type="x-shader/fragment">
+    precision mediump float;
+
+    varying vec4 vColor;
+
+    void main()
+    {
+      gl_FragColor = vColor;
+    }
+  </script>
+
+  <script>
+    vertex_data = [
+       0.25,  0.25, -1.25, 1.0,
+       0.25, -0.25, -1.25, 1.0,
+      -0.25,  0.25, -1.25, 1.0,
+
+       0.25, -0.25, -1.25, 1.0,
+      -0.25, -0.25, -1.25, 1.0,
+      -0.25,  0.25, -1.25, 1.0,
+
+       0.25,  0.25, -2.75, 1.0,
+      -0.25,  0.25, -2.75, 1.0,
+       0.25, -0.25, -2.75, 1.0,
+
+       0.25, -0.25, -2.75, 1.0,
+      -0.25,  0.25, -2.75, 1.0,
+      -0.25, -0.25, -2.75, 1.0,
+
+      -0.25,  0.25, -1.25, 1.0,
+      -0.25, -0.25, -1.25, 1.0,
+      -0.25, -0.25, -2.75, 1.0,
+
+      -0.25,  0.25, -1.25, 1.0,
+      -0.25, -0.25, -2.75, 1.0,
+      -0.25,  0.25, -2.75, 1.0,
+
+       0.25,  0.25, -1.25, 1.0,
+       0.25, -0.25, -2.75, 1.0,
+       0.25, -0.25, -1.25, 1.0,
+
+       0.25,  0.25, -1.25, 1.0,
+       0.25,  0.25, -2.75, 1.0,
+       0.25, -0.25, -2.75, 1.0,
+
+       0.25,  0.25, -2.75, 1.0,
+       0.25,  0.25, -1.25, 1.0,
+      -0.25,  0.25, -1.25, 1.0,
+
+       0.25,  0.25, -2.75, 1.0,
+      -0.25,  0.25, -1.25, 1.0,
+      -0.25,  0.25, -2.75, 1.0,
+
+       0.25, -0.25, -2.75, 1.0,
+      -0.25, -0.25, -1.25, 1.0,
+       0.25, -0.25, -1.25, 1.0,
+
+       0.25, -0.25, -2.75, 1.0,
+      -0.25, -0.25, -2.75, 1.0,
+      -0.25, -0.25, -1.25, 1.0,
+
+      0.0, 0.0, 1.0, 1.0,
+      0.0, 0.0, 1.0, 1.0,
+      0.0, 0.0, 1.0, 1.0,
+
+      0.0, 0.0, 1.0, 1.0,
+      0.0, 0.0, 1.0, 1.0,
+      0.0, 0.0, 1.0, 1.0,
+
+      0.8, 0.8, 0.8, 1.0,
+      0.8, 0.8, 0.8, 1.0,
+      0.8, 0.8, 0.8, 1.0,
+
+      0.8, 0.8, 0.8, 1.0,
+      0.8, 0.8, 0.8, 1.0,
+      0.8, 0.8, 0.8, 1.0,
+
+      0.0, 1.0, 0.0, 1.0,
+      0.0, 1.0, 0.0, 1.0,
+      0.0, 1.0, 0.0, 1.0,
+
+      0.0, 1.0, 0.0, 1.0,
+      0.0, 1.0, 0.0, 1.0,
+      0.0, 1.0, 0.0, 1.0,
+
+      0.5, 0.5, 0.0, 1.0,
+      0.5, 0.5, 0.0, 1.0,
+      0.5, 0.5, 0.0, 1.0,
+
+      0.5, 0.5, 0.0, 1.0,
+      0.5, 0.5, 0.0, 1.0,
+      0.5, 0.5, 0.0, 1.0,
+
+      1.0, 0.0, 0.0, 1.0,
+      1.0, 0.0, 0.0, 1.0,
+      1.0, 0.0, 0.0, 1.0,
+
+      1.0, 0.0, 0.0, 1.0,
+      1.0, 0.0, 0.0, 1.0,
+      1.0, 0.0, 0.0, 1.0,
+
+      0.0, 1.0, 1.0, 1.0,
+      0.0, 1.0, 1.0, 1.0,
+      0.0, 1.0, 1.0, 1.0,
+
+      0.0, 1.0, 1.0, 1.0,
+      0.0, 1.0, 1.0, 1.0,
+      0.0, 1.0, 1.0, 1.0,
+    ];
+  </script>
+
+  <script>
+    (function(window){
+      var canvas;
+      var gl;
+      var currentProgram;
+      var canvasWidth;
+      var canvasHeight;
+      var perspectiveMatrix;
+      var perspectiveMatrixLocation;
+
+      var frustumScale = 1.0;
+      var zNear = 1.0;
+      var zFar = 3.0;
+
+      init();
+      animate();
+
+      function init() {
+        createWebGLContext();
+        configureWebGL();
+        onWindowResize();
+        window.addEventListener('resize', onWindowResize, false);
+      }
+
+      function createWebGLContext() {
+        canvas = document.querySelector('canvas');
+
+        try {
+          gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+        } catch(error) { }
+
+        if (!gl) {
+          throw "cannot create webgl context";
+        }
+      }
+
+      function configureWebGL(){
+        gl.enable(gl.CULL_FACE);
+        gl.cullFace(gl.BACK);
+        gl.frontFace(gl.CW);
+
+        var buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertex_data), gl.STATIC_DRAW);
+
+        var vertex_shader = document.getElementById('vs').textContent;
+        var fragment_shader = document.getElementById('fs').textContent;
+        currentProgram = createProgram(vertex_shader, fragment_shader);
+        gl.useProgram(currentProgram);
+
+        vertexPositionAttribute = gl.getAttribLocation(currentProgram, "aVertexPosition");
+        gl.enableVertexAttribArray(vertexPositionAttribute);
+        gl.vertexAttribPointer(vertexPositionAttribute, 4, gl.FLOAT, false, 16, 0);
+
+        vertexColorAttribute = gl.getAttribLocation(currentProgram, "aVertexColor");
+        var color_data_start = (vertex_data.length / 2) * 4;
+        gl.enableVertexAttribArray(vertexColorAttribute);
+        gl.vertexAttribPointer(vertexColorAttribute, 4, gl.FLOAT, false, 16, color_data_start);
+
+        setPerspectiveProjection();
+      }
+
+      function setPerspectiveProjection() {
+        perspectiveMatrix = new Float32Array(16);
+        perspectiveMatrix[0] = frustumScale / (canvasWidth / canvasHeight);
+        perspectiveMatrix[5] = frustumScale;
+        perspectiveMatrix[10] = (zFar + zNear) / (zNear - zFar);
+        perspectiveMatrix[14] = (2 * zFar * zNear) / (zNear - zFar);
+        perspectiveMatrix[11] = -1.0;
+
+        perspectiveMatrixLocation = gl.getUniformLocation(currentProgram, 'perspectiveMatrix');
+        gl.uniformMatrix4fv(perspectiveMatrixLocation, false, perspectiveMatrix);
+      }
+
+      function createProgram(vertex, fragment) {
+        var program = gl.createProgram();
+
+        var vs = createShader(vertex, gl.VERTEX_SHADER);
+        var fs = createShader(fragment, gl.FRAGMENT_SHADER);
+
+        if (vs == null || fs == null) return null;
+
+        gl.attachShader(program, vs);
+        gl.attachShader(program, fs);
+
+        gl.deleteShader(vs);
+        gl.deleteShader(fs);
+
+        gl.linkProgram(program);
+
+        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+          alert("ERROR:\n" +
+          "VALIDATE_STATUS: " + gl.getProgramParameter(program, gl.VALIDATE_STATUS) + "\n" +
+          "ERROR: " + gl.getError() + "\n\n" +
+          "- Vertex Shader -\n" + vertex + "\n\n" +
+          "- Fragment Shader -\n" + fragment);
+
+          return null;
+        }
+
+        return program;
+      }
+
+      function createShader(src, type) {
+        var shader = gl.createShader(type);
+
+        gl.shaderSource(shader, src);
+        gl.compileShader(shader);
+
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+          alert((type == gl.VERTEX_SHADER ? "VERTEX" : "FRAGMENT") + " SHADER:\n" + gl.getShaderInfoLog(shader));
+          return null;
+        }
+
+        return shader;
+      }
+
+      function onWindowResize(event) {
+        canvasWidth = window.innerWidth;
+        canvasHeight = window.innerHeight;
+
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+
+        setPerspectiveProjection();
+
+        gl.viewport(0, 0, canvasWidth, canvasHeight);
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+        render();
+      }
+
+      function render() {
+        if (!currentProgram) return;
+
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        gl.drawArrays(gl.TRIANGLES, 0, (vertex_data.length/2/4));
+
+        // gl.disableVertexAttribArray(vertexPositionAttribute);
+        // gl.disableVertexAttribArray(vertexColorAttribute);
+        // gl.useProgram(null);
+      }
+
+      window.requestAnimationFrame = window.requestAnimationFrame || (function() {
+        return  window.webkitRequestAnimationFrame ||
+                window.mozRequestAnimationFrame ||
+                window.oRequestAnimationFrame ||
+                window.msRequestAnimationFrame ||
+                function(callback, element) {
+                  window.setTimeout(callback, 1000 / 60);
+                };
+      })();
+    })(window);
+  </script>
+</body>
+</html>

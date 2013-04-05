@@ -1,0 +1,309 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <title>Chapter 4, Part 2 - Positioning</title>
+ 
+  <style>
+    body {
+      background-color: #000000;
+      margin: 0px;
+      overflow: hidden;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <canvas width="512" height="512"></canvas>
+  <div id="info"></div>
+
+  <script id="vs" type="x-shader/vertex">
+    attribute vec4 aVertexPosition;
+    attribute vec4 aVertexColor;
+
+    uniform float zNear;
+    uniform float zFar;
+    uniform float frustumScale;
+
+    varying vec4 vColor;
+
+    void main()
+    {
+      vec4 cameraPos = aVertexPosition + vec4(0.5, 0.5, 0.0, 0.0);;
+      vec4 clipPos;
+
+      // Frustrum adjustment
+      clipPos.xy = cameraPos.xy * frustumScale;
+
+      // Camera space to NDC space conversion (gives depth perspective projection)
+      clipPos.z = cameraPos.z * (zNear + zFar) / (zNear - zFar);
+      clipPos.z += 2.0 * zNear * zFar / (zNear - zFar);
+
+      // Perspective division term
+      clipPos.w = -cameraPos.z;
+
+      gl_Position = clipPos;
+
+      vColor = aVertexColor;
+    }
+  </script>
+
+  <script id="fs" type="x-shader/fragment">
+    precision mediump float;
+
+    varying vec4 vColor;
+
+    void main()
+    {
+      gl_FragColor = vColor;
+    }
+  </script>
+
+  <script>
+    window.requestAnimationFrame = window.requestAnimationFrame || ( function() {
+      return  window.webkitRequestAnimationFrame ||
+              window.mozRequestAnimationFrame ||
+              window.oRequestAnimationFrame ||
+              window.msRequestAnimationFrame ||
+              function(  callback, element ) {
+                window.setTimeout( callback, 1000 / 60 );
+              };
+    })();
+
+    var canvas,
+        gl,
+        buffer,
+        vertex_shader, fragment_shader,
+        currentProgram,
+        vertex_position,
+        parameters = {  start_time  : new Date().getTime(),
+                        time        : 0,
+                        screenWidth : 0,
+                        screenHeight: 0 };
+
+    init();
+    animate();
+
+    function init() {
+      vertex_shader = document.getElementById('vs').textContent;
+      fragment_shader = document.getElementById('fs').textContent;
+
+      canvas = document.querySelector( 'canvas' );
+
+      try {
+        gl = canvas.getContext( 'experimental-webgl' );
+      } catch( error ) { }
+
+      if ( !gl ) {
+        throw "cannot create webgl context";
+      }
+
+      vertex_data = [
+         0.25,  0.25, -1.25, 1.0,
+         0.25, -0.25, -1.25, 1.0,
+        -0.25,  0.25, -1.25, 1.0,
+
+         0.25, -0.25, -1.25, 1.0,
+        -0.25, -0.25, -1.25, 1.0,
+        -0.25,  0.25, -1.25, 1.0,
+
+         0.25,  0.25, -2.75, 1.0,
+        -0.25,  0.25, -2.75, 1.0,
+         0.25, -0.25, -2.75, 1.0,
+
+         0.25, -0.25, -2.75, 1.0,
+        -0.25,  0.25, -2.75, 1.0,
+        -0.25, -0.25, -2.75, 1.0,
+
+        -0.25,  0.25, -1.25, 1.0,
+        -0.25, -0.25, -1.25, 1.0,
+        -0.25, -0.25, -2.75, 1.0,
+
+        -0.25,  0.25, -1.25, 1.0,
+        -0.25, -0.25, -2.75, 1.0,
+        -0.25,  0.25, -2.75, 1.0,
+
+         0.25,  0.25, -1.25, 1.0,
+         0.25, -0.25, -2.75, 1.0,
+         0.25, -0.25, -1.25, 1.0,
+
+         0.25,  0.25, -1.25, 1.0,
+         0.25,  0.25, -2.75, 1.0,
+         0.25, -0.25, -2.75, 1.0,
+
+         0.25,  0.25, -2.75, 1.0,
+         0.25,  0.25, -1.25, 1.0,
+        -0.25,  0.25, -1.25, 1.0,
+
+         0.25,  0.25, -2.75, 1.0,
+        -0.25,  0.25, -1.25, 1.0,
+        -0.25,  0.25, -2.75, 1.0,
+
+         0.25, -0.25, -2.75, 1.0,
+        -0.25, -0.25, -1.25, 1.0,
+         0.25, -0.25, -1.25, 1.0,
+
+         0.25, -0.25, -2.75, 1.0,
+        -0.25, -0.25, -2.75, 1.0,
+        -0.25, -0.25, -1.25, 1.0,
+
+        0.0, 0.0, 1.0, 1.0,
+        0.0, 0.0, 1.0, 1.0,
+        0.0, 0.0, 1.0, 1.0,
+
+        0.0, 0.0, 1.0, 1.0,
+        0.0, 0.0, 1.0, 1.0,
+        0.0, 0.0, 1.0, 1.0,
+
+        0.8, 0.8, 0.8, 1.0,
+        0.8, 0.8, 0.8, 1.0,
+        0.8, 0.8, 0.8, 1.0,
+
+        0.8, 0.8, 0.8, 1.0,
+        0.8, 0.8, 0.8, 1.0,
+        0.8, 0.8, 0.8, 1.0,
+
+        0.0, 1.0, 0.0, 1.0,
+        0.0, 1.0, 0.0, 1.0,
+        0.0, 1.0, 0.0, 1.0,
+
+        0.0, 1.0, 0.0, 1.0,
+        0.0, 1.0, 0.0, 1.0,
+        0.0, 1.0, 0.0, 1.0,
+
+        0.5, 0.5, 0.0, 1.0,
+        0.5, 0.5, 0.0, 1.0,
+        0.5, 0.5, 0.0, 1.0,
+
+        0.5, 0.5, 0.0, 1.0,
+        0.5, 0.5, 0.0, 1.0,
+        0.5, 0.5, 0.0, 1.0,
+
+        1.0, 0.0, 0.0, 1.0,
+        1.0, 0.0, 0.0, 1.0,
+        1.0, 0.0, 0.0, 1.0,
+
+        1.0, 0.0, 0.0, 1.0,
+        1.0, 0.0, 0.0, 1.0,
+        1.0, 0.0, 0.0, 1.0,
+
+        0.0, 1.0, 1.0, 1.0,
+        0.0, 1.0, 1.0, 1.0,
+        0.0, 1.0, 1.0, 1.0,
+
+        0.0, 1.0, 1.0, 1.0,
+        0.0, 1.0, 1.0, 1.0,
+        0.0, 1.0, 1.0, 1.0,
+      ];
+
+      gl.enable(gl.CULL_FACE);
+      gl.cullFace(gl.BACK);
+      gl.frontFace(gl.CW);
+
+      buffer = gl.createBuffer();
+      gl.bindBuffer( gl.ARRAY_BUFFER, buffer );
+      gl.bufferData( gl.ARRAY_BUFFER, new Float32Array( vertex_data ), gl.STATIC_DRAW );
+
+      currentProgram = createProgram( vertex_shader, fragment_shader );
+      gl.useProgram( currentProgram );
+
+      cacheLocations();
+
+      color_data_start = (vertex_data.length / 2) * 4;
+
+      gl.vertexAttribPointer(vertexPositionAttribute, 4, gl.FLOAT, false, 16, 0);
+      gl.vertexAttribPointer(vertexColorAttribute, 4, gl.FLOAT, false, 16, color_data_start);
+
+      gl.enableVertexAttribArray(vertexPositionAttribute);
+      gl.enableVertexAttribArray(vertexColorAttribute);
+
+      onWindowResize();
+      window.addEventListener( 'resize', onWindowResize, false );
+    }
+
+    function createProgram( vertex, fragment ) {
+      var program = gl.createProgram();
+
+      var vs = createShader( vertex, gl.VERTEX_SHADER );
+      var fs = createShader( '#ifdef GL_ES\nprecision highp float;\n#endif\n\n' + fragment, gl.FRAGMENT_SHADER );
+
+      if ( vs == null || fs == null ) return null;
+
+      gl.attachShader( program, vs );
+      gl.attachShader( program, fs );
+
+      gl.deleteShader( vs );
+      gl.deleteShader( fs );
+
+      gl.linkProgram( program );
+
+      if ( !gl.getProgramParameter( program, gl.LINK_STATUS ) ) {
+        alert( "ERROR:\n" +
+        "VALIDATE_STATUS: " + gl.getProgramParameter( program, gl.VALIDATE_STATUS ) + "\n" +
+        "ERROR: " + gl.getError() + "\n\n" +
+        "- Vertex Shader -\n" + vertex + "\n\n" +
+        "- Fragment Shader -\n" + fragment );
+
+        return null;
+      }
+
+      return program;
+    }
+
+    function createShader( src, type ) {
+      var shader = gl.createShader( type );
+
+      gl.shaderSource( shader, src );
+      gl.compileShader( shader );
+
+      if ( !gl.getShaderParameter( shader, gl.COMPILE_STATUS ) ) {
+
+        alert( ( type == gl.VERTEX_SHADER ? "VERTEX" : "FRAGMENT" ) + " SHADER:\n" + gl.getShaderInfoLog( shader ) );
+        return null;
+      }
+
+      return shader;
+    }
+
+    function cacheLocations() {
+      vertexPositionAttribute = gl.getAttribLocation(currentProgram, "aVertexPosition");
+      vertexColorAttribute = gl.getAttribLocation(currentProgram, "aVertexColor");
+
+      zNearLocation = gl.getUniformLocation( currentProgram, 'zNear' );
+      zFarLocation = gl.getUniformLocation( currentProgram, 'zFar' );
+      frustumScaleLocation = gl.getUniformLocation( currentProgram, 'frustumScale' );
+
+      gl.uniform1f(zNearLocation, 1.0);
+      gl.uniform1f(zFarLocation, 3.0);
+      gl.uniform1f(frustumScaleLocation, 1.0);
+    }
+
+    function onWindowResize( event ) {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      parameters.screenWidth = canvas.width;
+      parameters.screenHeight = canvas.height;
+
+      gl.viewport( 0, 0, canvas.width, canvas.height );
+    }
+
+    function animate() {
+      requestAnimationFrame( animate );
+      render();
+    }
+
+    function render() {
+      if ( !currentProgram ) return;
+
+      gl.clear( gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT );
+
+      gl.drawArrays(gl.TRIANGLES, 0, (vertex_data.length/2/4));
+    }
+  </script>
+</body>
+</html>
