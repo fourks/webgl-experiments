@@ -1,0 +1,323 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <title>WebGL Fractal Experiments - 01 - Koch Snowflake</title>
+ 
+  <style>
+    body {
+      background-color: #000000;
+      margin: 0px;
+      overflow: hidden;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <canvas width="512" height="512"></canvas>
+
+  <script src="gl-matrix.js"></script>
+
+  <script id="vs" type="x-shader/vertex">
+    attribute vec4 aVertexPosition;
+    // attribute vec4 aVertexColor;
+    
+    uniform mat4 projectionMatrix;
+
+    varying vec4 vColor;
+
+    void main()
+    {
+      vec4 cameraPosition = aVertexPosition;
+      gl_Position = projectionMatrix * cameraPosition;
+      // vColor = aVertexColor;
+    }
+  </script>
+
+  <script id="fs" type="x-shader/fragment">
+    precision mediump float;
+
+    // varying vec4 vColor;
+
+    void main()
+    {
+      gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+    }
+  </script>
+
+  <script>
+    numberOfVertices = 3;
+
+    vertex_data = [
+      -1.0, +1.0, -0.0,
+      +1.0, +1.0, +0.0,
+      +0.0, -1.0, +0.0
+    ];
+  </script>
+
+  <script>
+    (function(window){
+      var canvas;
+      var gl;
+
+      var vertex_buffer;
+      var index_buffer;
+
+      var canvasWidth;
+      var canvasHeight;
+
+      var currentProgram;
+
+      var startTime = 0;
+      var elapsedTime = 0;
+
+      init();
+      animate();
+
+      function init() {
+        createWebGLContext();
+        configureWebGL();
+        onWindowResize();
+        window.addEventListener('resize', onWindowResize, false);
+      }
+
+      function createWebGLContext() {
+        canvas = document.querySelector('canvas');
+
+        try {
+          gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+        } catch(error) { }
+
+        if (!gl) {
+          throw "cannot create webgl context";
+        }
+      }
+
+      function configureWebGL(){
+        gl.clearColor(0.0, 0.0, 0.0, 0.0);
+        gl.clearDepth(1.0);
+
+        initialiseShaderProgram();
+        manipulateVertices();
+
+        for(var i=0; i<vertex_data.length; i++){
+          if (i%3==0)
+            console.log(vertex_data[i], vertex_data[i+1], vertex_data[i+2]);
+        }
+
+        initialiseVertexBuffers();
+        setPerspectiveProjection();
+      }
+
+      function initialiseShaderProgram() {
+        var vertex_shader = document.getElementById('vs').textContent;
+        var fragment_shader = document.getElementById('fs').textContent;
+        currentProgram = createProgram(vertex_shader, fragment_shader);
+        gl.useProgram(currentProgram);
+
+        projectionMatrixUnif = gl.getUniformLocation(currentProgram, "projectionMatrix");
+
+        vertexPositionAttribute = gl.getAttribLocation(currentProgram, "aVertexPosition");
+        // vertexColorAttribute = gl.getAttribLocation(currentProgram, "aVertexColor");
+      }
+
+      function manipulateVertices() {
+        // Clone array
+        original_vertex_data = vertex_data.slice(0);
+
+        for(var i=0, l=numberOfVertices; i<l; i++) {
+          var nextVertexIndex = (i+1==l) ? 0 : i+1;
+
+          var start = vec3.fromValues(
+            original_vertex_data[i], 
+            original_vertex_data[i*3+1], 
+            original_vertex_data[i*3+2]);
+
+          var end = vec3.fromValues(
+            original_vertex_data[nextVertexIndex], 
+            original_vertex_data[nextVertexIndex*3+1], 
+            original_vertex_data[nextVertexIndex*3+2]);
+
+          // console.log("Start", start);
+          // console.log("End", end);
+
+          var magnitude = vec3.distance(start, end);
+          var distance = vec3.fromValues(magnitude/3, magnitude/3, 0.0);
+
+          // console.log("Magnitude", magnitude);
+          
+          var direction = vec3.create();
+          vec3.subtract(direction, end, start);
+          vec3.normalize(direction, direction);
+
+          // console.log("Direction Unit Vector", direction);        
+
+          var p1 = vec3.create();
+          vec3.multiply(p1, direction, distance);
+          vec3.add(p1, start, p1);
+
+          var p2 = vec3.create();
+          vec3.multiply(p2, direction, distance);
+          vec3.subtract(p2, end, p2);
+
+          // var p3 = vec3.create();
+          // vec3.multiply(p3, direction, distance);
+          // vec3.subtract(p3, end, p3);
+
+          // console.log("P1", p1);
+          // console.log("P2", p2);
+          // console.log("P3", p3);
+
+          var j = (i*12)+3;
+          console.log("i", i, j);
+          addVertex(j, p1);
+
+          j+=3;
+          console.log("i", i, j);
+          addVertex(j, p2);
+
+          j+=3;
+          console.log("i", i, j);
+          addVertex(j, p1);
+
+          // 3
+          // 6
+          // 9
+          // 15
+          // 18
+          // 21
+          // 27
+          // 30
+          // 33
+
+          // console.log("");
+        }
+      }
+
+      function addVertex(i, vertex) {
+        vertex_data.splice(i, 0, vertex[0], vertex[1], vertex[2]);
+        numberOfVertices+=1;
+      }
+
+      function initialiseVertexBuffers() {
+        var size_of_float = 4;
+        // color_data_start = numberOfVertices * size_of_float * 3;
+
+        vertex_buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertex_data), gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+        gl.enableVertexAttribArray(vertexPositionAttribute);
+        // gl.enableVertexAttribArray(vertexColorAttribute);
+
+        gl.vertexAttribPointer(vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
+        // gl.vertexAttribPointer(vertexColorAttribute, 4, gl.FLOAT, false, 0, color_data_start);
+      }
+
+      function setPerspectiveProjection() {
+        var zNear = 0.0;
+        var zFar = 5.0;
+
+        var perspectiveMatrix = mat4.create();
+        mat4.ortho(perspectiveMatrix, -5, 5, -5, 5, zNear, zFar);
+
+        gl.uniformMatrix4fv(projectionMatrixUnif, false, perspectiveMatrix);
+      }
+
+      function createProgram(vertex, fragment) {
+        var program = gl.createProgram();
+
+        var vs = createShader(vertex, gl.VERTEX_SHADER);
+        var fs = createShader(fragment, gl.FRAGMENT_SHADER);
+
+        if (vs == null || fs == null) return null;
+
+        gl.attachShader(program, vs);
+        gl.attachShader(program, fs);
+
+        gl.deleteShader(vs);
+        gl.deleteShader(fs);
+
+        gl.linkProgram(program);
+
+        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+          alert("ERROR:\n" +
+          "VALIDATE_STATUS: " + gl.getProgramParameter(program, gl.VALIDATE_STATUS) + "\n" +
+          "ERROR: " + gl.getError() + "\n\n" +
+          "- Vertex Shader -\n" + vertex + "\n\n" +
+          "- Fragment Shader -\n" + fragment);
+
+          return null;
+        }
+
+        return program;
+      }
+
+      function createShader(src, type) {
+        var shader = gl.createShader(type);
+
+        gl.shaderSource(shader, src);
+        gl.compileShader(shader);
+
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+          alert((type == gl.VERTEX_SHADER ? "VERTEX" : "FRAGMENT") + " SHADER:\n" + gl.getShaderInfoLog(shader));
+          return null;
+        }
+
+        return shader;
+      }
+
+      function onWindowResize(event) {
+        canvasWidth = window.innerWidth;
+        canvasHeight = window.innerHeight;
+
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+
+        setPerspectiveProjection();
+
+        gl.viewport(0, 0, canvasWidth, canvasHeight);
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+        updateElapsedTime();
+        render();
+      }
+
+      function updateElapsedTime() {
+        var timeNow = window.performance.now();
+
+        if (startTime == 0) {
+          startTime = timeNow;
+        } else {
+          elapsedTime = (timeNow - startTime) / 1000;
+        }
+      }
+
+      function render() {
+        if (!currentProgram) return;
+
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.drawArrays(gl.POINTS, 0, numberOfVertices);
+      }
+
+      window.requestAnimationFrame = window.requestAnimationFrame || (function() {
+        return  window.webkitRequestAnimationFrame ||
+                window.mozRequestAnimationFrame ||
+                window.oRequestAnimationFrame ||
+                window.msRequestAnimationFrame ||
+                function(callback, element) {
+                  window.setTimeout(callback, 1000 / 60);
+                };
+      })();
+    })(window);
+  </script>
+</body>
+</html>

@@ -1,0 +1,612 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <title>Chapter 6, Objects in Motion - Fun with Matrices</title>
+ 
+  <style>
+    body {
+      background-color: #000000;
+      margin: 0px;
+      overflow: hidden;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <canvas width="512" height="512"></canvas>
+
+  <script src="gl-matrix.js"></script>
+
+  <script id="vs" type="x-shader/vertex">
+    attribute vec4 aVertexPosition;
+    attribute vec4 aVertexColor;
+    
+    uniform mat4 modelViewMatrix;
+    uniform mat4 projectionMatrix;
+
+    varying vec4 vColor;
+
+    void main()
+    {
+      vec4 cameraPosition = modelViewMatrix * aVertexPosition;
+      gl_Position = projectionMatrix * cameraPosition;
+      vColor = aVertexColor;
+    }
+  </script>
+
+  <script id="fs" type="x-shader/fragment">
+    precision mediump float;
+
+    varying vec4 vColor;
+
+    void main()
+    {
+      gl_FragColor = vColor;
+    }
+  </script>
+
+  <script>
+    numberOfVertices = 24;
+
+    vertex_data = [
+      //Front
+      +1.0, +1.0, +1.0,
+      +1.0, -1.0, +1.0,
+      -1.0, -1.0, +1.0,
+      -1.0, +1.0, +1.0,
+
+      //Top
+      +1.0, +1.0, +1.0,
+      -1.0, +1.0, +1.0,
+      -1.0, +1.0, -1.0,
+      +1.0, +1.0, -1.0,
+
+      //Left
+      +1.0, +1.0, +1.0,
+      +1.0, +1.0, -1.0,
+      +1.0, -1.0, -1.0,
+      +1.0, -1.0, +1.0,
+
+      //Back
+      +1.0, +1.0, -1.0,
+      -1.0, +1.0, -1.0,
+      -1.0, -1.0, -1.0,
+      +1.0, -1.0, -1.0,
+
+      //Bottom
+      +1.0, -1.0, +1.0,
+      +1.0, -1.0, -1.0,
+      -1.0, -1.0, -1.0,
+      -1.0, -1.0, +1.0,
+
+      //Right
+      -1.0, +1.0, +1.0,
+      -1.0, -1.0, +1.0,
+      -1.0, -1.0, -1.0,
+      -1.0, +1.0, -1.0,
+
+      0.0, 1.0, 0.0, 1.0,
+      0.0, 1.0, 0.0, 1.0,
+      0.0, 1.0, 0.0, 1.0,
+      0.0, 1.0, 0.0, 1.0,
+
+      0.0, 0.0, 1.0, 1.0,
+      0.0, 0.0, 1.0, 1.0,
+      0.0, 0.0, 1.0, 1.0,
+      0.0, 0.0, 1.0, 1.0,
+
+      1.0, 0.0, 0.0, 1.0,
+      1.0, 0.0, 0.0, 1.0,
+      1.0, 0.0, 0.0, 1.0,
+      1.0, 0.0, 0.0, 1.0,
+
+      1.0, 1.0, 0.0, 1.0,
+      1.0, 1.0, 0.0, 1.0,
+      1.0, 1.0, 0.0, 1.0,
+      1.0, 1.0, 0.0, 1.0,
+
+      0.0, 1.0, 1.0, 1.0,
+      0.0, 1.0, 1.0, 1.0,
+      0.0, 1.0, 1.0, 1.0,
+      0.0, 1.0, 1.0, 1.0,
+
+      1.0, 0.0, 1.0, 1.0,
+      1.0, 0.0, 1.0, 1.0,
+      1.0, 0.0, 1.0, 1.0,
+      1.0, 0.0, 1.0, 1.0,
+    ];
+
+    index_data = [
+      0, 1, 2,
+      2, 3, 0,
+
+      4, 5, 6,
+      6, 7, 4,
+
+      8, 9, 10,
+      10, 11, 8,
+
+      12, 13, 14,
+      14, 15, 12,
+
+      16, 17, 18,
+      18, 19, 16,
+
+      20, 21, 22,
+      22, 23, 20,
+    ];
+  </script>
+
+  <script>
+    (function(window){
+      var canvas;
+      var gl;
+
+      var vertex_buffer;
+      var index_buffer;
+
+      var canvasWidth;
+      var canvasHeight;
+
+      var currentProgram;
+
+      var startTime = 0;
+      var elapsedTime = 0;
+
+      var mvMatrixStack = [];
+
+      var KEYCODE_W = 119;
+      var KEYCODE_A = 97;
+      var KEYCODE_S = 115;
+      var KEYCODE_D = 100;
+      var KEYCODE_R = 114;
+      var KEYCODE_F = 102;
+      var KEYCODE_T = 116;
+      var KEYCODE_G = 103;
+      var KEYCODE_Z = 122;
+      var KEYCODE_C = 99;
+      var KEYCODE_Q = 113;
+      var KEYCODE_E = 101;
+
+      var posBase = vec3.fromValues(0.0, -3.0, -40.0);
+      var angBase = -45.0;
+      var posBaseLeft = vec3.fromValues(2.0, 0.0, 0.0);
+      var posBaseRight = vec3.fromValues(-2.0, 0.0, 0.0);
+      var scaleBaseZ = 3.0;
+      
+      var angUpperArm = -33.75;
+      var sizeUpperArm = 9.0;
+      var posLowerArm = vec3.fromValues(0.0, 0.0, 8.0);
+      var angLowerArm = 146.25;
+      var lenLowerArm = 5.0;
+      var widthLowerArm = 1.5;
+      
+      var posWrist = vec3.fromValues(0.0, 0.0, 5.0);
+      var angWristRoll = 0.0;
+      var angWristPitch = 67.5;
+      var lenWrist = 2.0;
+      var widthWrist = 2.0;
+      
+      var posLeftFinger = vec3.fromValues(1.0, 0.0, 1.0);
+      var posRightFinger = vec3.fromValues(-1.0, 0.0, 1.0);
+      var angFingerOpen = 180.0;
+      var lenFinger = 2.0;
+      var widthFinger = 0.5;
+      var angLowerFinger = 45.0;
+
+      var STANDARD_ANGLE_INCREMENT = 11.25;
+      var SMALL_ANGLE_INCREMENT = 9.0;
+
+      init();
+      animate();
+
+      function init() {
+        createWebGLContext();
+        configureWebGL();
+        onWindowResize();
+
+        window.addEventListener('keypress', onKeyPress, false);
+        window.addEventListener('resize', onWindowResize, false);
+      }
+
+      function createWebGLContext() {
+        canvas = document.querySelector('canvas');
+
+        try {
+          gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+        } catch(error) { }
+
+        if (!gl) {
+          throw "cannot create webgl context";
+        }
+      }
+
+      function configureWebGL(){
+        gl.enable(gl.CULL_FACE);
+        gl.cullFace(gl.BACK);
+        gl.frontFace(gl.CW);
+
+        gl.enable(gl.DEPTH_TEST);
+        gl.depthMask(true);
+        gl.depthFunc(gl.LEQUAL);
+        gl.depthRange(0.0, 1.0);
+
+        gl.clearColor(0.0, 0.0, 0.0, 0.0);
+        gl.clearDepth(1.0);
+
+        initialiseShaderProgram();
+        initialiseVertexBuffers();
+        setPerspectiveProjection();
+      }
+
+      function initialiseShaderProgram() {
+        var vertex_shader = document.getElementById('vs').textContent;
+        var fragment_shader = document.getElementById('fs').textContent;
+        currentProgram = createProgram(vertex_shader, fragment_shader);
+        gl.useProgram(currentProgram);
+
+        modelViewMatrixUnif = gl.getUniformLocation(currentProgram, "modelViewMatrix");
+        projectionMatrixUnif = gl.getUniformLocation(currentProgram, "projectionMatrix");
+
+        vertexPositionAttribute = gl.getAttribLocation(currentProgram, "aVertexPosition");
+        vertexColorAttribute = gl.getAttribLocation(currentProgram, "aVertexColor");
+      }
+
+      function initialiseVertexBuffers() {
+        var size_of_float = 4;
+        color_data_start = numberOfVertices * size_of_float * 3;
+
+        vertex_buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertex_data), gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+        index_buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index_buffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(index_data), gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+                
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index_buffer);
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+        gl.enableVertexAttribArray(vertexPositionAttribute);
+        gl.enableVertexAttribArray(vertexColorAttribute);
+
+        gl.vertexAttribPointer(vertexPositionAttribute, 3, gl.FLOAT, false, 12, 0);
+        gl.vertexAttribPointer(vertexColorAttribute, 4, gl.FLOAT, false, 16, color_data_start);
+      }
+
+      function setPerspectiveProjection() {
+        var zNear = 1.0;
+        var zFar = 61.0;
+        var fovRad = degToRad(45.0);
+        var aspect = canvasWidth/canvasHeight;
+
+        var perspectiveMatrix = mat4.create();
+        mat4.perspective(perspectiveMatrix, fovRad, aspect, zNear, zFar);
+
+        gl.uniformMatrix4fv(projectionMatrixUnif, false, perspectiveMatrix);
+      }
+
+      function degToRad(fovDegrees) {
+        var degToRad = 3.14159 * 2.0/360.0;
+        
+        return fovDegrees * degToRad;
+      }
+
+      function mvPushMatrix() {
+        var copy = mat4.clone(mvMatrix);
+        mvMatrixStack.push(copy);
+      }
+
+      function mvPopMatrix() {
+        if (mvMatrixStack.length == 0) {
+          throw "Invalid popMatrix!";
+        }
+        mvMatrix = mvMatrixStack.pop();
+      }
+
+      function createProgram(vertex, fragment) {
+        var program = gl.createProgram();
+
+        var vs = createShader(vertex, gl.VERTEX_SHADER);
+        var fs = createShader(fragment, gl.FRAGMENT_SHADER);
+
+        if (vs == null || fs == null) return null;
+
+        gl.attachShader(program, vs);
+        gl.attachShader(program, fs);
+
+        gl.deleteShader(vs);
+        gl.deleteShader(fs);
+
+        gl.linkProgram(program);
+
+        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+          alert("ERROR:\n" +
+          "VALIDATE_STATUS: " + gl.getProgramParameter(program, gl.VALIDATE_STATUS) + "\n" +
+          "ERROR: " + gl.getError() + "\n\n" +
+          "- Vertex Shader -\n" + vertex + "\n\n" +
+          "- Fragment Shader -\n" + fragment);
+
+          return null;
+        }
+
+        return program;
+      }
+
+      function createShader(src, type) {
+        var shader = gl.createShader(type);
+
+        gl.shaderSource(shader, src);
+        gl.compileShader(shader);
+
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+          alert((type == gl.VERTEX_SHADER ? "VERTEX" : "FRAGMENT") + " SHADER:\n" + gl.getShaderInfoLog(shader));
+          return null;
+        }
+
+        return shader;
+      }
+
+      function animate() {
+        requestAnimationFrame(animate);
+        updateElapsedTime();
+        render();
+      }
+
+      function updateElapsedTime() {
+        var timeNow = window.performance.now();
+
+        if (startTime == 0) {
+          startTime = timeNow;
+        } else {
+          elapsedTime = (timeNow - startTime)/1000;
+        }
+      }
+
+      function render() {
+        if (!currentProgram) return;
+
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        createMVMatrix();
+        drawLeftBase();
+        drawRightBase();
+        drawUpperArm();
+      }
+
+      function createMVMatrix() {
+        mvMatrix = mat4.create();
+        mat4.translate(mvMatrix, mvMatrix, posBase);
+        mat4.rotateY(mvMatrix, mvMatrix, angBase);
+      }
+
+      function drawRectangle(translate, scale) {
+        mvPushMatrix();
+
+        if (translate != null) {
+          mat4.translate(mvMatrix, mvMatrix, translate);
+        }
+        
+        if (scale != null) {
+          mat4.scale(mvMatrix, mvMatrix, scale);
+        }
+
+        gl.uniformMatrix4fv(modelViewMatrixUnif, false, mvMatrix);
+        gl.drawElements(gl.TRIANGLES, index_data.length, gl.UNSIGNED_SHORT, 0);
+
+        mvPopMatrix();
+      }
+
+      function drawLeftBase() {
+        drawRectangle(posBaseLeft, vec3.fromValues(1.0, 1.0, scaleBaseZ));
+      }
+
+      function drawRightBase() {       
+        drawRectangle(posBaseRight, vec3.fromValues(1.0, 1.0, scaleBaseZ));
+      }
+
+      function drawUpperArm() {
+        mvPushMatrix();
+        mat4.rotateX(mvMatrix, mvMatrix, angUpperArm);        
+
+        var translate = vec3.fromValues(0.0, 0.0, (sizeUpperArm/2.0) - 1.0);
+        var scale = vec3.fromValues(1.0, 1.0, sizeUpperArm/2.0);
+        drawRectangle(translate, scale);
+        
+        drawLowerArm();
+        mvPopMatrix();
+      }
+
+      function drawLowerArm() {
+        mvPushMatrix();
+        mat4.translate(mvMatrix, mvMatrix, posLowerArm);
+        mat4.rotateX(mvMatrix, mvMatrix, angLowerArm);
+        
+        var translate = vec3.fromValues(0.0, 0.0, lenLowerArm/2.0)
+        var scale = vec3.fromValues(widthLowerArm/2.0, widthLowerArm/2.0, lenLowerArm/2.0);
+        drawRectangle(translate, scale);
+
+        drawWrist();
+        mvPopMatrix();
+      }
+
+      function drawWrist() {
+        mvPushMatrix();
+        mat4.translate(mvMatrix, mvMatrix, posWrist);
+        mat4.rotateZ(mvMatrix, mvMatrix, angWristRoll);
+        mat4.rotateX(mvMatrix, mvMatrix, angWristPitch);
+
+        var scale = vec3.fromValues(widthWrist/2.0, widthWrist/2.0, lenWrist/2.0);
+        drawRectangle(null, scale);
+
+        drawFingers();
+        mvPopMatrix();
+      }
+
+      function drawFingers() {
+        drawLeftFinger();
+        drawRightFinger();
+      }
+
+      function drawLeftFinger() {
+        mvPushMatrix();
+        mat4.translate(mvMatrix, mvMatrix, posLeftFinger);
+        mat4.rotateY(mvMatrix, mvMatrix, angFingerOpen);
+
+        var translate = vec3.fromValues(0.0, 0.0, lenFinger/2.0);
+        var scale = vec3.fromValues(widthFinger/2.0, widthFinger/2.0, lenFinger/2.0);
+        drawRectangle(translate, scale);
+
+        drawLeftLowerFinger();
+        mvPopMatrix();
+      }
+
+      function drawLeftLowerFinger() {
+        mvPushMatrix();
+        mat4.translate(mvMatrix, mvMatrix, vec3.fromValues(0.0, 0.0, lenFinger));
+        mat4.rotateY(mvMatrix, mvMatrix, -angLowerFinger);
+
+        var translate = vec3.fromValues(0.0, 0.0, lenFinger/2.0);
+        var scale = vec3.fromValues(widthFinger/2.0, widthFinger/ 2.0, lenFinger/2.0);
+        drawRectangle(translate, scale);
+
+        mvPopMatrix();
+      }
+
+      function drawRightFinger() {
+        mvPushMatrix();
+        mat4.translate(mvMatrix, mvMatrix, posRightFinger);
+        mat4.rotateY(mvMatrix, mvMatrix, -angFingerOpen);
+
+        var translate = vec3.fromValues(0.0, 0.0, lenFinger/2.0);
+        var scale = vec3.fromValues(widthFinger/2.0, widthFinger/ 2.0, lenFinger/2.0);
+        drawRectangle(translate, scale);
+
+        drawRightLowerFinger();
+        mvPopMatrix();
+      }
+
+      function drawRightLowerFinger() {
+        mvPushMatrix();
+        mat4.translate(mvMatrix, mvMatrix, vec3.fromValues(0.0, 0.0, lenFinger));
+        mat4.rotateY(mvMatrix, mvMatrix, angLowerFinger);
+
+        var translate = vec3.fromValues(0.0, 0.0, lenFinger/2.0);
+        var scale = vec3.fromValues(widthFinger/2.0, widthFinger/ 2.0, lenFinger/2.0);
+        drawRectangle(translate, scale);
+
+        mvPopMatrix();
+      }
+
+      function onKeyPress(e) {
+        switch(e.keyCode) {
+          case KEYCODE_W:
+            adjUpperArm(false);
+            break;
+          case KEYCODE_A:
+            adjBase(true);
+            break;
+          case KEYCODE_S:
+            adjUpperArm(true);
+            break;
+          case KEYCODE_D:
+            adjBase(false);
+            break;
+          case KEYCODE_R:
+            adjLowerArm(false);
+            break;
+          case KEYCODE_F:
+            adjLowerArm(true);
+            break;
+          case KEYCODE_T:
+            adjWristPitch(false);
+            break;
+          case KEYCODE_G:
+            adjWristPitch(true);
+            break;
+          case KEYCODE_Z:
+            adjWristRoll(true);
+            break;
+          case KEYCODE_C:
+            adjWristRoll(false);
+            break;
+          case KEYCODE_Q:
+            adjFingerOpen(true);
+            break;
+          case KEYCODE_E:
+            adjFingerOpen(false);
+            break;
+        }
+      }
+
+      function adjBase(bIncrement)
+      {
+        angBase += bIncrement ? STANDARD_ANGLE_INCREMENT : -STANDARD_ANGLE_INCREMENT;
+        angBase = angBase % 360.0;
+      }
+
+      function adjUpperArm(bIncrement)
+      {
+        angUpperArm += bIncrement ? STANDARD_ANGLE_INCREMENT : -STANDARD_ANGLE_INCREMENT;
+        angUpperArm = clamp(angUpperArm, -90.0, 0.0);
+      }
+
+      function adjLowerArm(bIncrement)
+      {
+        angLowerArm += bIncrement ? STANDARD_ANGLE_INCREMENT : -STANDARD_ANGLE_INCREMENT;
+        angLowerArm = clamp(angLowerArm, 0.0, 146.25);
+      }
+
+      function adjWristPitch(bIncrement)
+      {
+        angWristPitch += bIncrement ? STANDARD_ANGLE_INCREMENT : -STANDARD_ANGLE_INCREMENT;
+        angWristPitch = clamp(angWristPitch, 0.0, 90.0);
+      }
+
+      function adjWristRoll(bIncrement)
+      {
+        angWristRoll += bIncrement ? STANDARD_ANGLE_INCREMENT : -STANDARD_ANGLE_INCREMENT;
+        angWristRoll = angWristRoll % 360.0;
+      }
+
+      function adjFingerOpen(bIncrement)
+      {
+        angFingerOpen += bIncrement ? SMALL_ANGLE_INCREMENT : -SMALL_ANGLE_INCREMENT;
+        angFingerOpen = clamp(angFingerOpen, 9.0, 180.0);
+      }
+
+      function clamp(a, min, max) {
+        return Math.min(Math.max(a, min), max);
+      }
+
+      function onWindowResize(event) {
+        canvasWidth = window.innerWidth;
+        canvasHeight = window.innerHeight;
+
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+
+        setPerspectiveProjection();
+
+        gl.viewport(0, 0, canvasWidth, canvasHeight);
+      }
+
+      window.requestAnimationFrame = window.requestAnimationFrame || (function() {
+        return  window.webkitRequestAnimationFrame ||
+                window.mozRequestAnimationFrame ||
+                window.oRequestAnimationFrame ||
+                window.msRequestAnimationFrame ||
+                function(callback, element) {
+                  window.setTimeout(callback, 1000/60);
+                };
+      })();
+    })(window);
+  </script>
+</body>
+</html>
