@@ -12,8 +12,8 @@
       overflow: hidden;
     }
     canvas {
-      /*width: 100%;*/
-      /*height: 100%;*/
+      width: 100%;
+      height: 100%;
     }
   </style>
 </head>
@@ -50,20 +50,23 @@
   </script>
 
   <script>
-    numberOfVertices = 3;
+    // numberOfVertices = 3;
 
-    vertex_data = [];
+    vertex_data_draw = [];
+    vertex_data_traverse = [];
+    index_data = [0, 1, 2];
 
     function createEquilateralTriangle(topX, topY, length)
     {
       var a2 = (length*length) - ((length/2)*(length/2));
       height = Math.sqrt(a2);
-      vertex_data.push(topX, topY, 0.0);
-      vertex_data.push(topX-(length/2), topY+height, 0.0);
-      vertex_data.push(topX+(length/2), topY+height, 0.0);
+      vertex_data_traverse.push(topX, topY, 0.0);
+      vertex_data_traverse.push(topX-(length/2), topY+height, 0.0);
+      vertex_data_traverse.push(topX+(length/2), topY+height, 0.0);
     }
 
     createEquilateralTriangle(0.0, 0.0, 2.0);
+    vertex_data_draw = vertex_data_traverse.slice(0);
   </script>
 
   <script>
@@ -109,7 +112,12 @@
         gl.clearDepth(1.0);
 
         initialiseShaderProgram();
-        manipulateVertices();
+
+        var iterations = 1;
+
+        for (var i=0; i<iterations; i++) {
+          fractialIteration(i+1);
+        }
 
         initialiseVertexBuffers();
         setPerspectiveProjection();
@@ -127,23 +135,48 @@
         // vertexColorAttribute = gl.getAttribLocation(currentProgram, "aVertexColor");
       }
 
-      function manipulateVertices() {
-        // Clone array
-        original_vertex_data = vertex_data.slice(0);
+      function fractialIteration(iterationCount) {
+        original_vertex_data_traverse = vertex_data_traverse.slice(0); // Clone array
 
-        for(var i=0, l=vertex_data.length; i<l; i+=3) {
+        for(var i=0, l=vertex_data_traverse.length; i<l; i+=3) {
           var nextVertexIndex = (i+3==l) ? 0 : i+3;
 
+          var triangle = createTriangle(i, nextVertexIndex);
+
+          var k = (i*4)+3;
+          // var m = k/3;
+
+          // Store vertices in counter-clockwise rotation order
+          vertex_data_traverse.splice(k, 0, 
+            triangle[0][0], triangle[0][1], triangle[0][2],
+            triangle[1][0], triangle[1][1], triangle[1][2],
+            triangle[2][0], triangle[2][1], triangle[2][2]);
+
+          vertex_data_draw.splice(vertex_data_draw.length, 0,
+            triangle[0][0], triangle[0][1], triangle[0][2],
+            triangle[1][0], triangle[1][1], triangle[1][2],
+            triangle[2][0], triangle[2][1], triangle[2][2]);
+
+          // numberOfVertices += 3;
+
+          index_data = [];
+          for(var z=0; z<vertex_data_traverse.length;z+=3) {
+            index_data.push(z/3);
+          }
+        }
+      }
+
+      function createTriangle(i, nextVertexIndex) {
           // p1 & p2 are points (vectors from the origin)
           var p1 = vec3.fromValues(
-            original_vertex_data[i], 
-            original_vertex_data[i+1], 
-            original_vertex_data[i+2]);
+            original_vertex_data_traverse[i], 
+            original_vertex_data_traverse[i+1], 
+            original_vertex_data_traverse[i+2]);
 
           var p2 = vec3.fromValues(
-            original_vertex_data[nextVertexIndex], 
-            original_vertex_data[nextVertexIndex+1], 
-            original_vertex_data[nextVertexIndex+2]);
+            original_vertex_data_traverse[nextVertexIndex], 
+            original_vertex_data_traverse[nextVertexIndex+1], 
+            original_vertex_data_traverse[nextVertexIndex+2]);
 
           // Displacement vector
           var v1 = vec3.create();
@@ -164,7 +197,6 @@
           var np2 = vec3.create();
 
           var distance2 = vec3.fromValues(magnitude/2.0, magnitude/2.0, 0.0);
-          var distance3 = vec3.fromValues(magnitude/2.0/3.0, magnitude/2.0/3.0, 0.0);
 
           // Displacement vector
           var midPoint = vec3.create();
@@ -174,8 +206,9 @@
           var directionPerp = vec3.create();
           var tmp = vec3.fromValues(v1[0], v1[1], -1.0);
           vec3.cross(directionPerp, v1, tmp);
+          vec3.normalize(directionPerp, directionPerp);
 
-          vec3.multiply(np2, directionPerp, distance3);
+          vec3.multiply(np2, directionPerp, distance);
           vec3.add(np2, midPoint, np2);
 
           // Create the third point of our new triangle
@@ -183,15 +216,7 @@
           vec3.multiply(np3, direction, distance);
           vec3.subtract(np3, p2, np3);
 
-          var j = (i*4)+3;
-          addVertex(j, np1);
-
-          j+=3;
-          addVertex(j, np2);
-
-          j+=3;
-          addVertex(j, np3);
-        }
+          return [np1, np2, np3];
       }
 
       function degToRad(degrees) {
@@ -200,24 +225,25 @@
         return degrees * degToRad;
       }
 
-      function addVertex(i, vertex) {
-        vertex_data.splice(i, 0, vertex[0], vertex[1], vertex[2]);
-        numberOfVertices+=1;
-      }
-
       function initialiseVertexBuffers() {
         var size_of_float = 4;
         // color_data_start = numberOfVertices * size_of_float * 3;
 
         vertex_buffer = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertex_data), gl.STATIC_DRAW);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertex_data_draw), gl.STATIC_DRAW);
         gl.bindBuffer(gl.ARRAY_BUFFER, null);
 
+        index_buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index_buffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(index_data), gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index_buffer);
         gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+        
         gl.enableVertexAttribArray(vertexPositionAttribute);
         // gl.enableVertexAttribArray(vertexColorAttribute);
-
         gl.vertexAttribPointer(vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
         // gl.vertexAttribPointer(vertexColorAttribute, 4, gl.FLOAT, false, 0, color_data_start);
       }
@@ -276,15 +302,15 @@
       }
 
       function onWindowResize(event) {
-        // canvasWidth = window.innerWidth;
-        // canvasHeight = window.innerHeight;
+        canvasWidth = window.innerWidth;
+        canvasHeight = window.innerHeight;
 
-        // canvas.width = canvasWidth;
-        // canvas.height = canvasHeight;
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
 
-        // setPerspectiveProjection();
+        setPerspectiveProjection();
 
-        // gl.viewport(0, 0, canvasWidth, canvasHeight);
+        gl.viewport(0, 0, canvasWidth, canvasHeight);
       }
 
       function animate() {
@@ -307,7 +333,8 @@
         if (!currentProgram) return;
 
         gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-        gl.drawArrays(gl.POINTS, 0, numberOfVertices);
+
+        gl.drawElements(gl.TRIANGLES, index_data.length, gl.UNSIGNED_SHORT, 0);
       }
 
       window.requestAnimationFrame = window.requestAnimationFrame || (function() {
