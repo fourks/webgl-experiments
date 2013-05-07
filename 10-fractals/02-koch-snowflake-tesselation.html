@@ -1,0 +1,381 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <title>WebGL Fractal Experiments - 02 - Koch Snowflake Tesselation</title>
+ 
+  <style>
+    body {
+      background-color: #000000;
+      margin: 0px;
+      overflow: hidden;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <canvas width="512" height="512"></canvas>
+
+  <script src="gl-matrix.js"></script>
+
+  <script id="vs" type="x-shader/vertex">
+    attribute vec4 aVertexPosition;
+    // attribute vec4 aVertexColor;
+    
+    uniform mat4 modelViewMatrix;
+    uniform mat4 projectionMatrix;
+
+    varying vec4 vColor;
+
+    void main()
+    {
+      vec4 cameraPosition = modelViewMatrix * aVertexPosition;
+      gl_Position = projectionMatrix * cameraPosition;
+      // vColor = aVertexColor;
+    }
+  </script>
+
+  <script id="fs" type="x-shader/fragment">
+    precision mediump float;
+
+    // varying vec4 vColor;
+
+    void main()
+    {
+      gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+    }
+  </script>
+
+  <script>
+    // numberOfVertices = 3;
+
+    vertex_data_draw = [];
+    vertex_data_traverse = [];
+    index_data = [0, 1, 2];
+
+    function createEquilateralTriangle(topX, topY, length)
+    {
+      var a2 = (length*length) - ((length/2)*(length/2));
+      height = Math.sqrt(a2);
+      vertex_data_traverse.push(topX, topY, 0.0);
+      vertex_data_traverse.push(topX-(length/2), topY+height, 0.0);
+      vertex_data_traverse.push(topX+(length/2), topY+height, 0.0);
+    }
+
+    createEquilateralTriangle(0.0, -1.0, 2.0);
+    vertex_data_draw = vertex_data_traverse.slice(0);
+  </script>
+
+  <script>
+    (function(window){
+      var canvas;
+      var gl;
+
+      var vertex_buffer;
+      var index_buffer;
+
+      var canvasWidth;
+      var canvasHeight;
+
+      var currentProgram;
+
+      var startTime = 0;
+      var elapsedTime = 0;
+
+      init();
+      animate();
+
+      function init() {
+        createWebGLContext();
+        configureWebGL();
+        onWindowResize();
+        window.addEventListener('resize', onWindowResize, false);
+      }
+
+      function createWebGLContext() {
+        canvas = document.querySelector('canvas');
+
+        try {
+          gl = canvas.getContext("webgl") || canvas.getContext("experimental-webgl");
+        } catch(error) { }
+
+        if (!gl) {
+          throw "cannot create webgl context";
+        }
+      }
+
+      function configureWebGL(){
+        gl.clearColor(0.0, 0.0, 0.0, 0.0);
+        gl.clearDepth(1.0);
+
+        initialiseShaderProgram();
+
+        var iterations = 4;
+
+        for (var i=0; i<iterations; i++) {
+          fractialIteration(i+1);
+        }
+
+        initialiseVertexBuffers();
+        setPerspectiveProjection();
+      }
+
+      function initialiseShaderProgram() {
+        var vertex_shader = document.getElementById('vs').textContent;
+        var fragment_shader = document.getElementById('fs').textContent;
+        currentProgram = createProgram(vertex_shader, fragment_shader);
+        gl.useProgram(currentProgram);
+
+        modelViewMatrixUnif = gl.getUniformLocation(currentProgram, "modelViewMatrix");
+        projectionMatrixUnif = gl.getUniformLocation(currentProgram, "projectionMatrix");
+
+        vertexPositionAttribute = gl.getAttribLocation(currentProgram, "aVertexPosition");
+        // vertexColorAttribute = gl.getAttribLocation(currentProgram, "aVertexColor");
+      }
+
+      function fractialIteration(iterationCount) {
+        original_vertex_data_traverse = vertex_data_traverse.slice(0); // Clone array
+
+        for(var i=0, l=vertex_data_traverse.length; i<l; i+=3) {
+          var nextVertexIndex = (i+3==l) ? 0 : i+3;
+
+          var triangle = createTriangle(i, nextVertexIndex);
+
+          var k = (i*4)+3;
+          // var m = k/3;
+
+          // Store vertices in counter-clockwise rotation order
+          vertex_data_traverse.splice(k, 0, 
+            triangle[0][0], triangle[0][1], triangle[0][2],
+            triangle[1][0], triangle[1][1], triangle[1][2],
+            triangle[2][0], triangle[2][1], triangle[2][2]);
+
+          vertex_data_draw.splice(vertex_data_draw.length, 0,
+            triangle[0][0], triangle[0][1], triangle[0][2],
+            triangle[1][0], triangle[1][1], triangle[1][2],
+            triangle[2][0], triangle[2][1], triangle[2][2]);
+
+          // numberOfVertices += 3;
+
+          index_data = [];
+          for(var z=0; z<vertex_data_traverse.length;z+=3) {
+            index_data.push(z/3);
+          }
+        }
+      }
+
+      function createTriangle(i, nextVertexIndex) {
+          // p1 & p2 are points (vectors from the origin)
+          var p1 = vec3.fromValues(
+            original_vertex_data_traverse[i], 
+            original_vertex_data_traverse[i+1], 
+            original_vertex_data_traverse[i+2]);
+
+          var p2 = vec3.fromValues(
+            original_vertex_data_traverse[nextVertexIndex], 
+            original_vertex_data_traverse[nextVertexIndex+1], 
+            original_vertex_data_traverse[nextVertexIndex+2]);
+
+          // Displacement vector
+          var v1 = vec3.create();
+          vec3.subtract(v1, p2, p1);
+
+          var magnitude = vec3.distance(p1, p2);
+          var distance = vec3.fromValues(magnitude/3.0, magnitude/3.0, 0.0);
+          
+          var direction = vec3.create();
+          vec3.normalize(direction, v1);
+
+          // Create the first point of our new triangle
+          var np1 = vec3.create();
+          vec3.multiply(np1, direction, distance);
+          vec3.add(np1, p1, np1);
+
+          // Create the second point of our new triangle
+          var np2 = vec3.create();
+
+          var distance2 = vec3.fromValues(magnitude/2.0, magnitude/2.0, 0.0);
+
+          // Displacement vector
+          var midPoint = vec3.create();
+          vec3.multiply(midPoint, direction, distance2);
+          vec3.add(midPoint, p1, midPoint);
+
+          var directionPerp = vec3.create();
+          var tmp = vec3.fromValues(v1[0], v1[1], -1.0);
+          vec3.cross(directionPerp, v1, tmp);
+          vec3.normalize(directionPerp, directionPerp);
+
+          // pythagoras
+          var c = (distance[0] * distance[0]);
+          var b = (distance[0]/2.0 * distance[0]/2.0);
+          var h = Math.sqrt(c - b);
+
+          var distance3 = vec3.fromValues(h, h, 0.0);
+
+          vec3.multiply(np2, directionPerp, distance3);
+          vec3.add(np2, midPoint, np2);
+
+          // Create the third point of our new triangle
+          var np3 = vec3.create();
+          vec3.multiply(np3, direction, distance);
+          vec3.subtract(np3, p2, np3);
+
+          return [np1, np2, np3];
+      }
+
+      function degToRad(degrees) {
+        var degToRad = 3.14159 * 2.0/360.0;
+        
+        return degrees * degToRad;
+      }
+
+      function initialiseVertexBuffers() {
+        var size_of_float = 4;
+        // color_data_start = numberOfVertices * size_of_float * 3;
+
+        vertex_buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertex_data_draw), gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ARRAY_BUFFER, null);
+
+        index_buffer = gl.createBuffer();
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index_buffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(index_data), gl.STATIC_DRAW);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
+
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, index_buffer);
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertex_buffer);
+        
+        gl.enableVertexAttribArray(vertexPositionAttribute);
+        // gl.enableVertexAttribArray(vertexColorAttribute);
+        gl.vertexAttribPointer(vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
+        // gl.vertexAttribPointer(vertexColorAttribute, 4, gl.FLOAT, false, 0, color_data_start);
+      }
+
+      function setPerspectiveProjection() {
+        var zNear = 0.0;
+        var zFar = 5.0;
+
+        var perspectiveMatrix = mat4.create();
+        mat4.ortho(perspectiveMatrix, -5, 5, -5, 5, zNear, zFar);
+
+        gl.uniformMatrix4fv(projectionMatrixUnif, false, perspectiveMatrix);
+      }
+
+      function createProgram(vertex, fragment) {
+        var program = gl.createProgram();
+
+        var vs = createShader(vertex, gl.VERTEX_SHADER);
+        var fs = createShader(fragment, gl.FRAGMENT_SHADER);
+
+        if (vs == null || fs == null) return null;
+
+        gl.attachShader(program, vs);
+        gl.attachShader(program, fs);
+
+        gl.deleteShader(vs);
+        gl.deleteShader(fs);
+
+        gl.linkProgram(program);
+
+        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+          alert("ERROR:\n" +
+          "VALIDATE_STATUS: " + gl.getProgramParameter(program, gl.VALIDATE_STATUS) + "\n" +
+          "ERROR: " + gl.getError() + "\n\n" +
+          "- Vertex Shader -\n" + vertex + "\n\n" +
+          "- Fragment Shader -\n" + fragment);
+
+          return null;
+        }
+
+        return program;
+      }
+
+      function createShader(src, type) {
+        var shader = gl.createShader(type);
+
+        gl.shaderSource(shader, src);
+        gl.compileShader(shader);
+
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+          alert((type == gl.VERTEX_SHADER ? "VERTEX" : "FRAGMENT") + " SHADER:\n" + gl.getShaderInfoLog(shader));
+          return null;
+        }
+
+        return shader;
+      }
+
+      function onWindowResize(event) {
+        canvasWidth = window.innerWidth;
+        canvasHeight = window.innerHeight;
+
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+
+        setPerspectiveProjection();
+
+        gl.viewport(0, 0, canvasWidth, canvasHeight);
+
+        animate();
+      }
+
+      function animate() {
+        updateElapsedTime();
+
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+        tesselate();
+      }
+
+      // TODO: Calculate x/y increments for tesselation dynamically based on snowflake dimensions
+      function tesselate() {
+        var xIncrement = 2.03;
+        var yIncrement = 2.30;
+
+        for (var i=0; i<10; i++) {
+          for (var j=0; j<10; j++) {
+            var mvMatrix = mat4.create();
+
+            var xDisplacement = (xIncrement*i);
+            var yDisplacement = -(yIncrement*j);
+
+            yDisplacement += (i%2==0) ? 1.16 : 0.0;
+            
+            mat4.translate(mvMatrix, mvMatrix, vec3.fromValues(-5.0, 4.0, 0.0));
+            mat4.translate(mvMatrix, mvMatrix, vec3.fromValues(xDisplacement, yDisplacement, 0.0));
+
+            gl.uniformMatrix4fv(modelViewMatrixUnif, false, mvMatrix);
+
+            gl.drawElements(gl.TRIANGLES, index_data.length, gl.UNSIGNED_SHORT, 0);
+          }
+        }
+      }
+
+      function updateElapsedTime() {
+        var timeNow = window.performance.now();
+
+        if (startTime == 0) {
+          startTime = timeNow;
+        } else {
+          elapsedTime = (timeNow - startTime) / 1000;
+        }
+      }
+
+      window.requestAnimationFrame = window.requestAnimationFrame || (function() {
+        return  window.webkitRequestAnimationFrame ||
+                window.mozRequestAnimationFrame ||
+                window.oRequestAnimationFrame ||
+                window.msRequestAnimationFrame ||
+                function(callback, element) {
+                  window.setTimeout(callback, 1000 / 60);
+                };
+      })();
+    })(window);
+  </script>
+</body>
+</html>
