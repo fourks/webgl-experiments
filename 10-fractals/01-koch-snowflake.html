@@ -113,7 +113,7 @@
 
         initialiseShaderProgram();
 
-        var iterations = 1;
+        var iterations = 4;
 
         for (var i=0; i<iterations; i++) {
           fractialIteration(i+1);
@@ -208,7 +208,14 @@
           vec3.cross(directionPerp, v1, tmp);
           vec3.normalize(directionPerp, directionPerp);
 
-          vec3.multiply(np2, directionPerp, distance);
+          // pythagoras
+          var c = (distance[0] * distance[0]);
+          var b = (distance[0]/2.0 * distance[0]/2.0);
+          var h = Math.sqrt(c - b);
+
+          var distance3 = vec3.fromValues(h, h, 0.0);
+
+          vec3.multiply(np2, directionPerp, distance3);
           vec3.add(np2, midPoint, np2);
 
           // Create the third point of our new triangle
